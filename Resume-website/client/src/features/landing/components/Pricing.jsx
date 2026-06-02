@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import PaymentModal from "../../../components/ui/PaymentModal";
+import { Check, Lock } from "lucide-react";
 
 const Pricing = () => {
     const navigate = useNavigate();
@@ -15,8 +16,6 @@ const Pricing = () => {
     const plans = [
         {
             name: "Free",
-            price: "$0",
-            period: "",
             desc: "Explore the platform. No card needed.",
             features: [
                 "Resume upload & instant ATS score",
@@ -30,21 +29,10 @@ const Pricing = () => {
                 "Cover letter generator",
             ],
             cta: "Start Free",
-            style: {
-                border: "1px solid var(--border)",
-                background: "var(--bg)",
-            },
-            btnStyle: {
-                border: "1px solid var(--border-2)",
-                background: "var(--bg-2)",
-                color: "var(--text-2)",
-            },
             badge: null,
         },
         {
             name: "Basic",
-            price: "$2.99",
-            period: "/month",
             desc: "Full feedback plus one ATS resume & cover letter.",
             features: [
                 "Complete color-coded feedback report",
@@ -52,25 +40,16 @@ const Pricing = () => {
                 "1 AI cover letter per month",
                 "Email support",
             ],
-            locked: [],
+            locked: [
+                "Job description match scoring",
+                "Unlimited resume versions",
+                "LinkedIn profile optimization",
+            ],
             cta: "Get Basic",
-            style: {
-                border: "2px solid var(--primary)",
-                background: "var(--bg)",
-                boxShadow: "0 24px 48px -12px var(--primary-glow)",
-            },
-            btnStyle: {
-                background: "var(--primary)",
-                color: "#fff",
-                boxShadow: "0 12px 24px -6px var(--primary-glow)",
-            },
-            badge: { label: "Most Popular", bg: "var(--primary)" },
-            glow: "var(--primary-glow)",
+            badge: "Most Popular",
         },
         {
             name: "Pro",
-            price: "$6.99",
-            period: "/month",
             desc: "Unlimited everything. The complete career toolkit.",
             features: [
                 "Everything in Basic — unlimited",
@@ -82,17 +61,7 @@ const Pricing = () => {
             ],
             locked: [],
             cta: "Get Pro",
-            style: {
-                border: "1px solid var(--border)",
-                background: "var(--bg)",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.03)",
-            },
-            btnStyle: {
-                background: "var(--text)",
-                color: "#fff",
-            },
-            badge: { label: "Best Value", bg: "var(--text)" },
-            glow: "rgba(15, 23, 42, 0.03)",
+            badge: "Best Value",
         },
     ];
 
@@ -130,25 +99,43 @@ const Pricing = () => {
         })();
     }, []);
 
+    const getFormattedPrice = (name) => {
+        if (!currency || rate === null) return null;
+        if (name === "Free") return currency === "INR" ? "₹0" : "$0";
+        if (currency === "INR") {
+            return name === "Basic" ? "₹299" : "₹999";
+        } else {
+            return name === "Basic" ? "$4.99" : "$14.99";
+        }
+    };
+
+    const getPricePeriod = (name) => {
+        if (name === "Free") return "";
+        return "/month";
+    };
+
     return (
         <section
             id="pricing"
-            className="py-32 relative overflow-hidden"
+            className="py-20 relative overflow-hidden"
             style={{ background: "var(--bg)" }}
         >
+            {/* Grid overlay for futuristic vibe */}
+            <div className="absolute inset-0 pointer-events-none opacity-[0.02] grid-bg" />
+            
             <div
-                className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] pointer-events-none opacity-20 blur-[120px]"
+                className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] pointer-events-none opacity-25 blur-[120px]"
                 style={{
                     background: "radial-gradient(circle, var(--primary-glow) 0%, transparent 70%)",
                 }}
             />
             <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
-                <div className="text-center mb-24">
+                <div className="text-center mb-16">
                     <motion.p
                         initial={{ opacity: 0, y: 10 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="text-[var(--primary)] text-sm font-black uppercase tracking-[0.3em] mb-4"
+                        className="text-[var(--primary)] text-xs font-black uppercase tracking-[0.3em] mb-4 bg-blue-50/95 border border-blue-150/80 px-4 py-1.5 rounded-full inline-block backdrop-blur-sm shadow-sm"
                     >
                         Investment
                     </motion.p>
@@ -157,152 +144,174 @@ const Pricing = () => {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.1 }}
-                        className="text-4xl md:text-6xl font-black tracking-tight text-[var(--text)] mb-6"
+                        className="text-3xl sm:text-4xl lg:text-[40px] font-black tracking-tight text-[var(--text)] mb-5 leading-tight"
                     >
-                        Simple, <span style={{ color: "var(--primary)" }}>Honest</span> Pricing
+                        Simple, <span className="bg-gradient-to-r from-blue-600 to-indigo-650 bg-clip-text text-transparent">Honest</span> Pricing
                     </motion.h2>
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.2 }}
-                        className="text-[var(--text-2)] text-xl max-w-2xl mx-auto font-medium"
+                        className="text-[var(--text-2)] text-base md:text-lg max-w-xl mx-auto font-semibold leading-relaxed"
                     >
                         Start for free and upgrade as you grow. No hidden fees or complex contracts.
                     </motion.p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                    {plans.map((p, i) => (
-                        <motion.div
-                            key={p.name}
-                            initial={{ opacity: 0, y: 30 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ delay: i * 0.12 }}
-                            whileHover={{ y: -8, transition: { duration: 0.3 } }}
-                            className="relative p-10 rounded-[32px] flex flex-col group transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/[0.06] cursor-pointer"
-                            style={p.style}
-                        >
-                            {p.glow && (
-                                <div
-                                    className="absolute inset-0 rounded-[32px] pointer-events-none opacity-20 group-hover:opacity-30 transition-opacity"
-                                    style={{
-                                        background: `radial-gradient(circle at 50% 0%, ${p.glow} 0%, transparent 70%)`,
-                                    }}
-                                />
-                            )}
-                            {p.badge && (
-                                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                                    <span
-                                        className="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-full text-white shadow-lg shadow-[var(--primary-glow)]"
-                                        style={{ background: p.badge.bg }}
-                                    >
-                                        {p.badge.label}
-                                    </span>
-                                </div>
-                            )}
-                            <div className="relative z-10 flex flex-col flex-1">
-                                <div className="mb-8">
-                                    <p
-                                        className="text-[10px] font-black uppercase tracking-widest mb-4"
-                                        style={{ color: "var(--text-3)" }}
-                                    >
-                                        {p.name}
-                                    </p>
-                                    <div className="flex items-baseline gap-2 mb-4">
-                                        <span className="text-5xl font-black text-[var(--text)] tracking-tighter">
-                                            {!currency || rate === null
-                                                ? p.price
-                                                : new Intl.NumberFormat(undefined, {
-                                                    style: "currency",
-                                                    currency,
-                                                    minimumFractionDigits: 0,
-                                                }).format(
-                                                    p.name === "Basic"
-                                                        ? 2.99 * rate
-                                                        : p.name === "Pro"
-                                                            ? 6.99 * rate
-                                                            : 0
-                                                )}
-                                        </span>
-                                        <span className="text-lg font-medium text-[var(--text-3)]">
-                                            {p.period}
-                                        </span>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
+                    {plans.map((p, i) => {
+                        const isPro = p.name === "Pro";
+                        const isBasic = p.name === "Basic";
+                        const price = getFormattedPrice(p.name);
+                        
+                        return (
+                            <motion.div
+                                key={p.name}
+                                initial={{ opacity: 0, y: 35 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: i * 0.12, type: "spring", stiffness: 80, damping: 15 }}
+                                whileHover={{ y: -6, transition: { duration: 0.2 } }}
+                                className={`relative rounded-[32px] flex flex-col cursor-pointer w-full max-w-md mx-auto lg:max-w-none lg:mx-0 p-[2px] overflow-hidden ${
+                                    isPro 
+                                        ? "shadow-[0_24px_60px_rgba(37,99,235,0.14)]" 
+                                        : "shadow-[0_16px_36px_rgba(37,99,235,0.03)]"
+                                }`}
+                                onClick={() =>
+                                    p.name === "Free"
+                                        ? navigate("/signup")
+                                        : setPaymentPlan(p.name.toLowerCase())
+                                }
+                            >
+                                {/* Rotating Conic Neon Border for Pro Tier */}
+                                {isPro && (
+                                    <div className="absolute inset-[-1000%] bg-[conic-gradient(from_90deg_at_50%_50%,#2563eb_0%,#6366f1_25%,#22d3ee_50%,#2563eb_100%)] animate-[spin_6s_linear_infinite] opacity-80" />
+                                )}
+
+                                {/* Inner Card Container */}
+                                <div className={`relative z-10 w-full h-full rounded-[30px] p-8 md:p-10 flex flex-col justify-between ${
+                                    isPro
+                                        ? "bg-slate-950 text-white"
+                                        : isBasic
+                                            ? "bg-white/85 backdrop-blur-xl border border-blue-200/50"
+                                            : "bg-white/65 backdrop-blur-xl border border-white/50"
+                                }`}>
+                                    
+                                    {/* Card Glow Blob */}
+                                    {!isPro && (
+                                        <div
+                                            className="absolute inset-0 rounded-[30px] pointer-events-none opacity-[0.06] group-hover:opacity-[0.1] transition-opacity"
+                                            style={{
+                                                background: `radial-gradient(circle at 50% 0%, var(--primary) 0%, transparent 70%)`,
+                                            }}
+                                        />
+                                    )}
+
+                                    {/* Badge */}
+                                    {p.badge && (
+                                        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20">
+                                            <span
+                                                className={`px-4 py-1 text-[9px] font-black uppercase tracking-widest rounded-full shadow-md ${
+                                                    isPro
+                                                        ? "bg-gradient-to-r from-blue-500 to-cyan-400 text-white"
+                                                        : "bg-[var(--primary)] text-white shadow-blue-500/10"
+                                                }`}
+                                            >
+                                                {p.badge}
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    <div className="flex flex-col flex-1">
+                                        <div className="mb-6">
+                                            <p
+                                                className={`text-[10px] font-black uppercase tracking-widest mb-3 ${
+                                                    isPro ? "text-cyan-400" : "text-slate-400"
+                                                }`}
+                                            >
+                                                {p.name}
+                                            </p>
+                                            <div className="flex items-baseline gap-1.5 mb-4">
+                                                <span className={`text-4xl md:text-5xl font-black tracking-tighter ${
+                                                    isPro ? "text-white" : "text-[var(--text)]"
+                                                }`}>
+                                                    {price === null ? (
+                                                        <span className="inline-block w-24 h-10 skeleton rounded-xl bg-slate-200/50" />
+                                                    ) : (
+                                                        price
+                                                    )}
+                                                </span>
+                                                <span className={`text-sm font-semibold ${
+                                                    isPro ? "text-slate-450" : "text-[var(--text-3)]"
+                                                }`}>
+                                                    {getPricePeriod(p.name)}
+                                                </span>
+                                            </div>
+                                            <p
+                                                className={`text-xs font-semibold leading-relaxed ${
+                                                    isPro ? "text-slate-400" : "text-[var(--text-2)]"
+                                                }`}
+                                            >
+                                                {p.desc}
+                                            </p>
+                                        </div>
+
+                                        <div className={`h-px mb-6 ${isPro ? "bg-slate-900" : "bg-slate-100"}`} />
+
+                                        {/* Features List */}
+                                        <ul className="space-y-4 mb-8 flex-1">
+                                            {p.features.map((f) => (
+                                                <li key={f} className="flex items-start gap-3">
+                                                    <div className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 border ${
+                                                        isPro
+                                                            ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400"
+                                                            : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600"
+                                                    }`}>
+                                                        <Check size={11} strokeWidth={3.5} />
+                                                    </div>
+                                                    <span
+                                                        className={`text-[12.5px] font-semibold leading-tight ${
+                                                            isPro ? "text-slate-300" : "text-[var(--text-2)]"
+                                                        }`}
+                                                    >
+                                                        {f}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                            {p.locked.map((f) => (
+                                                <li key={f} className="flex items-start gap-3 opacity-40">
+                                                    <div className="mt-0.5 w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0 text-slate-400">
+                                                        <Lock size={10} strokeWidth={2.5} />
+                                                    </div>
+                                                    <span
+                                                        className="text-[12.5px] font-semibold text-[var(--text-3)] leading-tight"
+                                                    >
+                                                        {f}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+
+                                        {/* Button */}
+                                        <motion.button
+                                            whileHover={{ scale: 1.02, y: -1 }}
+                                            whileTap={{ scale: 0.98 }}
+                                            className={`w-full py-4.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-sm hover:shadow-md cursor-pointer ${
+                                                isPro
+                                                    ? "bg-gradient-to-r from-blue-500 to-cyan-450 text-white shadow-blue-500/10 hover:shadow-cyan-400/20"
+                                                    : isBasic
+                                                        ? "bg-[var(--primary)] text-white shadow-blue-500/10 hover:shadow-blue-500/20 glow-button"
+                                                        : "bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-350 text-[var(--text-2)]"
+                                            }`}
+                                        >
+                                            {p.cta}
+                                        </motion.button>
                                     </div>
-                                    <p
-                                        className="text-sm font-medium leading-relaxed text-[var(--text-2)]"
-                                    >
-                                        {p.desc}
-                                    </p>
                                 </div>
-
-                                <div className="h-px bg-[var(--border)] mb-8" />
-
-                                <ul className="space-y-4 mb-10 flex-1">
-                                    {p.features.map((f) => (
-                                        <li key={f} className="flex items-start gap-3">
-                                            <div className="mt-1 w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                                                <svg
-                                                    width="12"
-                                                    height="12"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="3"
-                                                    viewBox="0 0 24 24"
-                                                    className="text-emerald-500"
-                                                >
-                                                    <path d="M20 6L9 17l-5-5" />
-                                                </svg>
-                                            </div>
-                                            <span
-                                                className="text-sm font-medium text-[var(--text-2)]"
-                                            >
-                                                {f}
-                                            </span>
-                                        </li>
-                                    ))}
-                                    {p.locked.map((f) => (
-                                        <li key={f} className="flex items-start gap-3 opacity-40">
-                                            <div className="mt-1 w-5 h-5 rounded-full bg-[var(--bg-3)] flex items-center justify-center flex-shrink-0">
-                                                <svg
-                                                    width="12"
-                                                    height="12"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="3"
-                                                    viewBox="0 0 24 24"
-                                                    className="text-[var(--text-3)]"
-                                                >
-                                                    <rect x="3" y="11" width="18" height="11" rx="2" />
-                                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                                </svg>
-                                            </div>
-                                            <span
-                                                className="text-sm font-medium text-[var(--text-3)]"
-                                            >
-                                                {f}
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
-
-                                <motion.button
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={() =>
-                                        p.name === "Free"
-                                            ? navigate("/signup")
-                                            : setPaymentPlan(p.name.toLowerCase())
-                                    }
-                                    className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-sm hover:shadow-lg"
-                                    style={p.btnStyle}
-                                >
-                                    {p.cta}
-                                </motion.button>
-                            </div>
-                        </motion.div>
-                    ))}
+                            </motion.div>
+                        );
+                    })}
                 </div>
             </div>
             <AnimatePresence>

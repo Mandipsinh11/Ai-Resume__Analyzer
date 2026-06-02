@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useToast } from "../../../components/ui/Toast";
 
 const SignUpPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -10,6 +11,7 @@ const SignUpPage = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const toast = useToast();
 
   const handleSignUp = async (e) => {
     e.preventDefault();
@@ -22,7 +24,7 @@ const SignUpPage = () => {
       });
       navigate("/login");
     } catch (err) {
-      alert(err.response?.data?.message || "Sign up failed");
+      toast.error(err.response?.data?.message || "Sign up failed");
     } finally {
       setLoading(false);
     }
@@ -35,11 +37,10 @@ const SignUpPage = () => {
     >
       {/* ── Left Panel — Image & Value Prop (hidden on mobile) ── */}
       <div className="hidden lg:flex lg:w-[52%] relative overflow-hidden flex-col">
-        {/* Background Image */}
-        <img
-          src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&q=85"
-          alt="Collaboration"
-          className="absolute inset-0 w-full h-full object-cover"
+        {/* Background gradient (no external dependency) */}
+        <div
+          className="absolute inset-0 w-full h-full"
+          style={{ background: "linear-gradient(160deg, #0f2744 0%, #0f172a 40%, #1e293b 100%)" }}
         />
         {/* Overlay */}
         <div
@@ -112,6 +113,19 @@ const SignUpPage = () => {
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           className="relative z-10 w-full max-w-md"
         >
+          {/* Back to home link */}
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-sm font-bold mb-6 transition-colors"
+            style={{ color: "var(--text-3)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-3)")}
+          >
+            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path d="M19 12H5m7-7l-7 7 7 7" />
+            </svg>
+            Back to home
+          </Link>
           {/* Mobile logo */}
           <Link to="/" className="flex lg:hidden items-center justify-center gap-2.5 mb-10">
             <div

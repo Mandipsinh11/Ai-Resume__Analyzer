@@ -4,29 +4,38 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Layout, Search, FileText, History, Settings, LogOut, Plus } from "lucide-react";
 import ResumeFeedback from "../../resume-analyzer/ResumeFeedback";
 import PaymentModal from "../../../components/ui/PaymentModal";
-const Navbar = ({ displayName, onLogout }) => (
-  <nav
-    className="fixed top-0 left-0 right-0 z-50 px-6 md:px-12 py-6 bg-[var(--bg)]/80 backdrop-blur-xl border-b border-[var(--border)]"
-  >
-    <div className="max-w-7xl mx-auto flex items-center justify-between">
-      <Link to="/" className="flex items-center gap-3">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-[var(--primary-glow)]"
-          style={{
-            background: "linear-gradient(135deg, var(--primary), var(--primary-d))",
-          }}
-        >
-          <svg width="16" height="16" fill="none" stroke="white" strokeWidth="3" viewBox="0 0 24 24">
-            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-            <polyline points="14 2 14 8 20 8" />
-          </svg>
-        </div>
-        <span className="text-2xl font-black tracking-tighter text-[var(--text)]">
-          ATSify<span className="text-[var(--primary)]">.ai</span>
-        </span>
-      </Link>
-      <div className="flex items-center gap-8">
-        <div className="hidden md:flex gap-8">
+export const DashboardNavbar = ({ displayName, onLogout }) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <motion.header
+      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+      style={{
+        background: "var(--glass)",
+        backdropFilter: "blur(20px)",
+        borderBottom: "1px solid var(--border)",
+      }}
+    >
+      <nav className="max-w-7xl mx-auto px-6 md:px-12 py-5 flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-[var(--primary-glow)]"
+            style={{
+              background: "linear-gradient(135deg, var(--primary), var(--primary-d))",
+            }}
+          >
+            <svg width="16" height="16" fill="none" stroke="white" strokeWidth="3" viewBox="0 0 24 24">
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+          </div>
+          <span className="text-2xl font-black tracking-tighter text-[var(--text)]">
+            ATSify<span className="text-[var(--primary)]">.ai</span>
+          </span>
+        </Link>
+
+        {/* Desktop Links */}
+        <div className="hidden md:flex items-center gap-8">
           {[
             { name: "Dashboard", href: "/dashboard" },
             { name: "My Resumes", href: "/my-resumes" },
@@ -43,18 +52,89 @@ const Navbar = ({ displayName, onLogout }) => (
           <button
             type="button"
             onClick={onLogout}
-            className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500 hover:text-rose-600 transition-colors"
+            className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500 hover:text-rose-600 transition-colors cursor-pointer"
           >
             Log Out
           </button>
+          <div className="w-10 h-10 rounded-full bg-[var(--primary)] flex items-center justify-center text-xs font-black text-white shadow-lg shadow-[var(--primary-glow)]">
+            {displayName.charAt(0)}
+          </div>
         </div>
-        <div className="w-10 h-10 rounded-full bg-[var(--primary)] flex items-center justify-center text-xs font-black text-white shadow-lg shadow-[var(--primary-glow)]">
-          {displayName.charAt(0)}
+
+        {/* Mobile Hamburger button */}
+        <div className="flex md:hidden items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-[var(--primary)] flex items-center justify-center text-xs font-black text-white shadow-lg shadow-[var(--primary-glow)]">
+            {displayName.charAt(0)}
+          </div>
+          <button
+            className="p-2 text-[var(--text)] cursor-pointer"
+            onClick={() => setOpen(!open)}
+            aria-label={open ? "Close menu" : "Open menu"}
+            aria-expanded={open}
+          >
+            <div className="w-6 h-4 flex flex-col justify-between">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="block h-0.5 bg-current transition-all duration-300"
+                  style={{
+                    transform:
+                      open && i === 0
+                        ? "rotate(45deg) translate(0, 8px)"
+                        : open && i === 2
+                          ? "rotate(-45deg) translate(0, -8px)"
+                          : "none",
+                    opacity: open && i === 1 ? 0 : 1,
+                  }}
+                />
+              ))}
+            </div>
+          </button>
         </div>
-      </div>
-    </div>
-  </nav>
-);
+      </nav>
+
+      {/* Mobile Drawer */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="md:hidden bg-[var(--bg)] border-t border-[var(--border)] overflow-hidden"
+          >
+            <div className="px-6 py-6 flex flex-col gap-4">
+              {[
+                { name: "Dashboard", href: "/dashboard" },
+                { name: "My Resumes", href: "/my-resumes" },
+                { name: "Settings", href: "/settings" },
+              ].map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  onClick={() => setOpen(false)}
+                  className="text-sm font-bold text-[var(--text-2)] hover:text-[var(--primary)] py-2"
+                >
+                  {item.name}
+                </Link>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onLogout();
+                }}
+                className="text-left text-sm font-bold text-rose-500 hover:text-rose-600 py-2 border-t border-[var(--border)] mt-2 cursor-pointer"
+              >
+                Log Out
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.header>
+  );
+};
 
 const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -140,7 +220,7 @@ const DashboardPage = () => {
           style={{ background: "radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)" }} />
       </div>
 
-      <Navbar displayName={displayName} onLogout={handleLogout} />
+      <DashboardNavbar displayName={displayName} onLogout={handleLogout} />
 
       <motion.main
         initial="hidden"

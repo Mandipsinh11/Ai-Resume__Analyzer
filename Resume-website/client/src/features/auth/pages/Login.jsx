@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useToast } from "../../../components/ui/Toast";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -9,6 +10,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const toast = useToast();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -22,7 +24,7 @@ const Login = () => {
       localStorage.setItem("user", JSON.stringify(res.data.user));
       navigate("/dashboard");
     } catch (err) {
-      alert(err.response?.data?.message || "Login failed");
+      toast.error(err.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -35,11 +37,10 @@ const Login = () => {
     >
       {/* ── Left Panel — Image & Testimonial (hidden on mobile) ── */}
       <div className="hidden lg:flex lg:w-[52%] relative overflow-hidden flex-col">
-        {/* Background Image */}
-        <img
-          src="https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=1200&q=85"
-          alt="Resume review"
-          className="absolute inset-0 w-full h-full object-cover"
+        {/* Background gradient (self-hosted, no external dependency) */}
+        <div
+          className="absolute inset-0 w-full h-full"
+          style={{ background: "linear-gradient(135deg, #1e3a5f 0%, #0f172a 40%, #0c1529 100%)" }}
         />
         {/* Overlay */}
         <div
@@ -92,7 +93,7 @@ const Login = () => {
               {/* Stat badges */}
               <div className="flex gap-6">
                 {[
-                  { value: "94%", label: "ATS Pass Rate" },
+                  { value: "96%", label: "ATS Pass Rate" },
                   { value: "3×", label: "More Interviews" },
                   { value: "10k+", label: "Users" },
                 ].map((s) => (
@@ -117,11 +118,9 @@ const Login = () => {
               "ATSify helped me rewrite my resume in 20 minutes. Got 4 interview calls the next week — including Google!"
             </p>
             <div className="flex items-center gap-3">
-              <img
-                src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&q=80"
-                alt="User"
-                className="w-9 h-9 rounded-full object-cover border-2 border-white/30"
-              />
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-xs font-black border-2 border-white/30">
+                AM
+              </div>
               <div>
                 <p className="text-white text-xs font-black">Arjun Mehta</p>
                 <p className="text-white/50 text-[10px] font-medium">Software Engineer · Google</p>
@@ -155,6 +154,19 @@ const Login = () => {
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           className="relative z-10 w-full max-w-md"
         >
+          {/* Back to home link */}
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-sm font-bold mb-6 transition-colors"
+            style={{ color: "var(--text-3)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-3)")}
+          >
+            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path d="M19 12H5m7-7l-7 7 7 7" />
+            </svg>
+            Back to home
+          </Link>
           {/* Mobile logo */}
           <Link to="/" className="flex lg:hidden items-center justify-center gap-2.5 mb-10">
             <div

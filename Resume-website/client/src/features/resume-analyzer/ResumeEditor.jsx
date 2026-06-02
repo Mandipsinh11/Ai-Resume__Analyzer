@@ -157,7 +157,7 @@ const ResumeEditor = () => {
           <div className="lg:col-span-2 space-y-8">
             <div className="bg-white rounded-[40px] shadow-2xl border border-[var(--border)] overflow-hidden">
               <MenuBar editor={editor} />
-              <div className="p-12 min-h-[800px] prose prose-slate max-w-none">
+              <div className="p-6 md:p-12 min-h-[800px] prose prose-slate max-w-none">
                 <EditorContent
                   editor={editor}
                   className="outline-none min-h-[700px] text-[var(--text)] font-medium leading-relaxed"
