@@ -33,11 +33,11 @@ const Pricing = () => {
         },
         {
             name: "Basic",
-            desc: "Full feedback plus one ATS resume & cover letter.",
+            desc: "One-time purchase. Modify and make changes to 4 resumes.",
             features: [
+                "Modify and optimize 4 resumes",
+                "Make updates & changes to 4 resumes",
                 "Complete color-coded feedback report",
-                "1 ATS-optimized resume download",
-                "1 AI cover letter per month",
                 "Email support",
             ],
             locked: [
@@ -110,8 +110,8 @@ const Pricing = () => {
     };
 
     const getPricePeriod = (name) => {
-        if (name === "Free") return "";
-        return "/month";
+        if (name === "Pro") return "/year";
+        return "";
     };
 
     return (
@@ -146,7 +146,7 @@ const Pricing = () => {
                         transition={{ delay: 0.1 }}
                         className="text-3xl sm:text-4xl lg:text-[40px] font-black tracking-tight text-[var(--text)] mb-5 leading-tight"
                     >
-                        Simple, <span className="bg-gradient-to-r from-blue-600 to-indigo-650 bg-clip-text text-transparent">Honest</span> Pricing
+                        Simple, <span className="text-[var(--primary)]">Honest</span> Pricing
                     </motion.h2>
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
@@ -173,140 +173,143 @@ const Pricing = () => {
                                 viewport={{ once: true }}
                                 transition={{ delay: i * 0.12, type: "spring", stiffness: 80, damping: 15 }}
                                 whileHover={{ y: -6, transition: { duration: 0.2 } }}
-                                className={`relative rounded-[32px] flex flex-col cursor-pointer w-full max-w-md mx-auto lg:max-w-none lg:mx-0 p-[2px] overflow-hidden ${
-                                    isPro 
-                                        ? "shadow-[0_24px_60px_rgba(37,99,235,0.14)]" 
-                                        : "shadow-[0_16px_36px_rgba(37,99,235,0.03)]"
-                                }`}
+                                className="relative pt-4 w-full max-w-md mx-auto lg:max-w-none lg:mx-0 flex flex-col cursor-pointer"
                                 onClick={() =>
                                     p.name === "Free"
                                         ? navigate("/signup")
                                         : setPaymentPlan(p.name.toLowerCase())
                                 }
                             >
-                                {/* Rotating Conic Neon Border for Pro Tier */}
-                                {isPro && (
-                                    <div className="absolute inset-[-1000%] bg-[conic-gradient(from_90deg_at_50%_50%,#2563eb_0%,#6366f1_25%,#22d3ee_50%,#2563eb_100%)] animate-[spin_6s_linear_infinite] opacity-80" />
-                                )}
-
-                                {/* Inner Card Container */}
-                                <div className={`relative z-10 w-full h-full rounded-[30px] p-8 md:p-10 flex flex-col justify-between ${
-                                    isPro
-                                        ? "bg-slate-950 text-white"
-                                        : isBasic
-                                            ? "bg-white/85 backdrop-blur-xl border border-blue-200/50"
-                                            : "bg-white/65 backdrop-blur-xl border border-white/50"
-                                }`}>
-                                    
-                                    {/* Card Glow Blob */}
-                                    {!isPro && (
-                                        <div
-                                            className="absolute inset-0 rounded-[30px] pointer-events-none opacity-[0.06] group-hover:opacity-[0.1] transition-opacity"
-                                            style={{
-                                                background: `radial-gradient(circle at 50% 0%, var(--primary) 0%, transparent 70%)`,
-                                            }}
-                                        />
-                                    )}
-
-                                    {/* Badge */}
-                                    {p.badge && (
-                                        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20">
-                                            <span
-                                                className={`px-4 py-1 text-[9px] font-black uppercase tracking-widest rounded-full shadow-md ${
-                                                    isPro
-                                                        ? "bg-gradient-to-r from-blue-500 to-cyan-400 text-white"
-                                                        : "bg-[var(--primary)] text-white shadow-blue-500/10"
-                                                }`}
-                                            >
-                                                {p.badge}
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    <div className="flex flex-col flex-1">
-                                        <div className="mb-6">
-                                            <p
-                                                className={`text-[10px] font-black uppercase tracking-widest mb-3 ${
-                                                    isPro ? "text-cyan-400" : "text-slate-400"
-                                                }`}
-                                            >
-                                                {p.name}
-                                            </p>
-                                            <div className="flex items-baseline gap-1.5 mb-4">
-                                                <span className={`text-4xl md:text-5xl font-black tracking-tighter ${
-                                                    isPro ? "text-white" : "text-[var(--text)]"
-                                                }`}>
-                                                    {price === null ? (
-                                                        <span className="inline-block w-24 h-10 skeleton rounded-xl bg-slate-200/50" />
-                                                    ) : (
-                                                        price
-                                                    )}
-                                                </span>
-                                                <span className={`text-sm font-semibold ${
-                                                    isPro ? "text-slate-450" : "text-[var(--text-3)]"
-                                                }`}>
-                                                    {getPricePeriod(p.name)}
-                                                </span>
-                                            </div>
-                                            <p
-                                                className={`text-xs font-semibold leading-relaxed ${
-                                                    isPro ? "text-slate-400" : "text-[var(--text-2)]"
-                                                }`}
-                                            >
-                                                {p.desc}
-                                            </p>
-                                        </div>
-
-                                        <div className={`h-px mb-6 ${isPro ? "bg-slate-900" : "bg-slate-100"}`} />
-
-                                        {/* Features List */}
-                                        <ul className="space-y-4 mb-8 flex-1">
-                                            {p.features.map((f) => (
-                                                <li key={f} className="flex items-start gap-3">
-                                                    <div className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 border ${
-                                                        isPro
-                                                            ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400"
-                                                            : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600"
-                                                    }`}>
-                                                        <Check size={11} strokeWidth={3.5} />
-                                                    </div>
-                                                    <span
-                                                        className={`text-[12.5px] font-semibold leading-tight ${
-                                                            isPro ? "text-slate-300" : "text-[var(--text-2)]"
-                                                        }`}
-                                                    >
-                                                        {f}
-                                                    </span>
-                                                </li>
-                                            ))}
-                                            {p.locked.map((f) => (
-                                                <li key={f} className="flex items-start gap-3 opacity-40">
-                                                    <div className="mt-0.5 w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0 text-slate-400">
-                                                        <Lock size={10} strokeWidth={2.5} />
-                                                    </div>
-                                                    <span
-                                                        className="text-[12.5px] font-semibold text-[var(--text-3)] leading-tight"
-                                                    >
-                                                        {f}
-                                                    </span>
-                                                </li>
-                                            ))}
-                                        </ul>
-
-                                        {/* Button */}
-                                        <motion.button
-                                            whileHover={{ scale: 1.02, y: -1 }}
-                                            whileTap={{ scale: 0.98 }}
-                                            className={`w-full py-4.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-sm hover:shadow-md cursor-pointer ${
+                                {/* Badge (Rendered outside overflow-hidden container to prevent cropping) */}
+                                {p.badge && (
+                                    <div className="absolute top-0.5 left-1/2 -translate-x-1/2 z-30">
+                                        <span
+                                            className={`px-4 py-1 text-[9px] font-black uppercase tracking-widest rounded-full shadow-md ${
                                                 isPro
-                                                    ? "bg-gradient-to-r from-blue-500 to-cyan-450 text-white shadow-blue-500/10 hover:shadow-cyan-400/20"
-                                                    : isBasic
-                                                        ? "bg-[var(--primary)] text-white shadow-blue-500/10 hover:shadow-blue-500/20 glow-button"
-                                                        : "bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-350 text-[var(--text-2)]"
+                                                    ? "bg-gradient-to-r from-blue-500 to-cyan-400 text-white"
+                                                    : "bg-[var(--primary)] text-white shadow-blue-500/10"
                                             }`}
                                         >
-                                            {p.cta}
-                                        </motion.button>
+                                            {p.badge}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {/* Main Card boundary (overflow-hidden clips the conic border glow) */}
+                                <div className={`relative w-full h-full rounded-[32px] p-[2px] overflow-hidden flex flex-col ${
+                                    isPro 
+                                        ? "shadow-[0_24px_60px_rgba(37,99,235,0.14)]" 
+                                        : "shadow-[0_16px_36px_rgba(37,99,235,0.03)]"
+                                }`}>
+                                    {/* Rotating Conic Neon Border for Pro Tier */}
+                                    {isPro && (
+                                        <div className="absolute inset-[-1000%] bg-[conic-gradient(from_90deg_at_50%_50%,#2563eb_0%,#6366f1_25%,#22d3ee_50%,#2563eb_100%)] animate-[spin_6s_linear_infinite] opacity-80" />
+                                    )}
+
+                                    {/* Inner Card Container */}
+                                    <div className={`relative z-10 w-full h-full rounded-[30px] p-8 md:p-10 flex flex-col justify-between ${
+                                        isPro
+                                            ? "bg-slate-950 text-white"
+                                            : isBasic
+                                                ? "bg-white/85 backdrop-blur-xl border border-blue-200/50"
+                                                : "bg-white/65 backdrop-blur-xl border border-white/50"
+                                    }`}>
+                                        
+                                        {/* Card Glow Blob */}
+                                        {!isPro && (
+                                            <div
+                                                className="absolute inset-0 rounded-[30px] pointer-events-none opacity-[0.06] group-hover:opacity-[0.1] transition-opacity"
+                                                style={{
+                                                    background: `radial-gradient(circle at 50% 0%, var(--primary) 0%, transparent 70%)`,
+                                                }}
+                                            />
+                                        )}
+
+                                        <div className="flex flex-col flex-1">
+                                            <div className="mb-6">
+                                                <p
+                                                    className={`text-[10px] font-black uppercase tracking-widest mb-3 ${
+                                                        isPro ? "text-cyan-400" : "text-slate-400"
+                                                    }`}
+                                                >
+                                                    {p.name}
+                                                </p>
+                                                <div className="flex items-baseline gap-1.5 mb-4">
+                                                    <span className={`text-4xl md:text-5xl font-black tracking-tighter ${
+                                                        isPro ? "text-white" : "text-[var(--text)]"
+                                                    }`}>
+                                                        {price === null ? (
+                                                            <span className="inline-block w-24 h-10 skeleton rounded-xl bg-slate-200/50" />
+                                                        ) : (
+                                                            price
+                                                        )}
+                                                    </span>
+                                                    <span className={`text-sm font-semibold ${
+                                                        isPro ? "text-slate-450" : "text-[var(--text-3)]"
+                                                    }`}>
+                                                        {getPricePeriod(p.name)}
+                                                    </span>
+                                                </div>
+                                                <p
+                                                    className={`text-xs font-semibold leading-relaxed ${
+                                                        isPro ? "text-slate-400" : "text-[var(--text-2)]"
+                                                    }`}
+                                                >
+                                                    {p.desc}
+                                                </p>
+                                            </div>
+
+                                            <div className={`h-px mb-6 ${isPro ? "bg-slate-900" : "bg-slate-100"}`} />
+
+                                            {/* Features List */}
+                                            <ul className="space-y-4 mb-8 flex-1">
+                                                {p.features.map((f) => (
+                                                    <li key={f} className="flex items-start gap-3">
+                                                        <div className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 border ${
+                                                            isPro
+                                                                ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400"
+                                                                : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600"
+                                                        }`}>
+                                                            <Check size={11} strokeWidth={3.5} />
+                                                        </div>
+                                                        <span
+                                                            className={`text-[12.5px] font-semibold leading-tight ${
+                                                                isPro ? "text-slate-300" : "text-[var(--text-2)]"
+                                                            }`}
+                                                        >
+                                                            {f}
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                                {p.locked.map((f) => (
+                                                    <li key={f} className="flex items-start gap-3 opacity-40">
+                                                        <div className="mt-0.5 w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0 text-slate-400">
+                                                            <Lock size={10} strokeWidth={2.5} />
+                                                        </div>
+                                                        <span
+                                                            className="text-[12.5px] font-semibold text-[var(--text-3)] leading-tight"
+                                                        >
+                                                            {f}
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+
+                                            {/* Button */}
+                                            <motion.button
+                                                whileHover={{ scale: 1.02, y: -1 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                className={`w-full py-4.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-sm hover:shadow-md cursor-pointer ${
+                                                    isPro
+                                                        ? "bg-gradient-to-r from-blue-500 to-cyan-450 text-white shadow-blue-500/10 hover:shadow-cyan-400/20"
+                                                        : isBasic
+                                                            ? "bg-[var(--primary)] text-white shadow-blue-500/10 hover:shadow-blue-500/20 glow-button"
+                                                            : "bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-350 text-[var(--text-2)]"
+                                                }`}
+                                            >
+                                                {p.cta}
+                                            </motion.button>
+                                        </div>
                                     </div>
                                 </div>
                             </motion.div>

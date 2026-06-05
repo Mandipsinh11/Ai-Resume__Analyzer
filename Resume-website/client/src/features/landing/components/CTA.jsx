@@ -51,27 +51,13 @@ const CTA = () => {
           />
 
           <div className="relative z-10 max-w-4xl mx-auto">
-            {/* Badge */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-8 border border-blue-150 bg-blue-50/90 text-[var(--primary)] backdrop-blur-sm shadow-sm"
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute h-full w-full rounded-full bg-[var(--primary)] opacity-75" />
-                <span className="relative rounded-full h-2 w-2 bg-[var(--primary)]" />
-              </span>
-              Join 10,000+ candidates getting hired this month
-            </motion.div>
-
             <h2 className="text-4xl md:text-6xl font-black tracking-tight text-[var(--text)] mb-6 leading-tight">
               Stop being filtered out. <br />
               <span className="bg-gradient-to-r from-blue-600 via-indigo-650 to-cyan-500 bg-clip-text text-transparent">Start getting hired.</span>
             </h2>
 
             <p className="text-base md:text-lg font-semibold text-[var(--text-2)] mb-10 max-w-xl mx-auto leading-relaxed">
-              Thousands of job seekers use ATSify to bypass filters and land interviews at top-tier companies.
+              ATSify helps you optimize your resume to bypass automated filters and get noticed by recruiters.
             </p>
 
             {/* Glowing Buttons */}

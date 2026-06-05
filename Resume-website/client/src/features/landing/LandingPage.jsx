@@ -8,7 +8,7 @@ import Footer from "../../components/layout/Footer";
 import TemplatesSection from "../templates/components/TemplatesSection";
 import FAQ from "./components/FAQ";
 import FallingResumes from "./components/FallingResumes";
-import Testimonials from "./components/Testimonials";
+import Compatibility from "./components/Compatibility";
 import BeforeAfterSlider from "./components/BeforeAfterSlider";
 
 const LandingPage = () => (
@@ -22,7 +22,7 @@ const LandingPage = () => (
       <BeforeAfterSlider />
       <TemplatesSection />
       <Pricing />
-      <Testimonials />
+      <Compatibility />
       <FAQ />
       <CTA />
     </main>

@@ -146,7 +146,7 @@ const TemplatesSection = () => {
             </span>
             <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-black tracking-tight text-[var(--text)] mb-5 leading-tight">
               ATS-optimized designs <br />
-              <span className="bg-gradient-to-r from-blue-600 to-indigo-650 bg-clip-text text-transparent">that actually get seen</span>
+              <span className="text-[var(--primary)]">that actually get seen</span>
             </h2>
             <p className="text-[var(--text-2)] text-base md:text-lg font-semibold leading-relaxed">
               Choose from our collection of field-tested templates, designed in collaboration with top recruiters.

@@ -568,7 +568,7 @@ const HowItWorks = () => {
             </motion.div>
             <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}
               className="text-3xl sm:text-4xl lg:text-[40px] font-black tracking-tight text-[var(--text)] mb-5 leading-tight">
-              How it works in <br /><span className="bg-gradient-to-r from-blue-600 to-indigo-650 bg-clip-text text-transparent">3 Simple Steps</span>
+              How it works in <br /><span className="text-[var(--primary)]">3 Simple Steps</span>
             </motion.h2>
             <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.2 }}
               className="text-[var(--text-2)] text-base md:text-lg mb-10 font-semibold leading-relaxed max-w-xl">

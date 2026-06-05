@@ -70,7 +70,7 @@ export default function FAQ() {
             className="text-3xl sm:text-4xl lg:text-[40px] font-black tracking-tight text-[var(--text)] mb-5 leading-tight text-center animate-text-gradient"
           >
             Questions we get <br />
-            <span className="bg-gradient-to-r from-blue-600 to-indigo-650 bg-clip-text text-transparent">Asked all the time</span>
+            <span className="text-[var(--primary)]">Asked all the time</span>
           </motion.h2>
         </div>
 

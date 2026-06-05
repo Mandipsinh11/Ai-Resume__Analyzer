@@ -9,14 +9,6 @@ const PHRASES = [
   "is optimized by AI.",
 ];
 
-const BRANDS = [
-  { name: "Spotify", color: "#1DB954", logo: "/images/logos/spotify.png" },
-  { name: "Stripe", color: "#008CDD", logo: "/images/logos/stripe.svg" },
-  { name: "Uber", color: "#000000", logo: "/images/logos/uber.png" },
-  { name: "Amazon", color: "#FF9900", logo:  "/images/logos/amazon.png"},
-  { name: "Meta", color: "#0668E1", logo: "/images/logos/meta.png" },
-  { name: "Google", color: "#4285F4", logo: "/images/logos/google.png" },
-];
 
 const TypeWriter = () => {
   const [idx, setIdx] = useState(0);
@@ -227,7 +219,7 @@ const Hero = () => {
       </div>
 
       {/* Main Content Container */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-12 w-full pt-28 pb-40 grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-12 lg:gap-16 items-center">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-12 w-full pt-28 pb-24 grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-12 lg:gap-16 items-center">
         {/* LEFT COLUMN — Text Content */}
         <motion.div
           initial={{ opacity: 0, x: -40 }}
@@ -476,51 +468,7 @@ const Hero = () => {
         </motion.div>
       </div>
 
-      {/* Brand Logos Marquee */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1 }}
-        className="absolute bottom-0 left-0 w-full py-8 bg-[var(--bg)] border-y border-[var(--border)] overflow-hidden flex items-center z-20"
-      >
-        <div className="relative flex overflow-hidden w-full">
-          <motion.div
-            animate={{ x: [0, -1500] }}
-            transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-            className="flex items-center gap-24 whitespace-nowrap px-10"
-          >
-            {[...Array(4)].flatMap(() => BRANDS).map((b, i) => (
-              <div
-                key={`${b.name}-${i}`}
-                className="flex items-center gap-3 min-w-max"
-              >
-                <div className="w-9 h-9 rounded-2xl flex items-center justify-center bg-white shadow-sm border border-white/60">
-                  {b.logo ? (
-                    <img
-                      src={b.logo}
-                      alt={b.name}
-                      className="w-6 h-6 object-contain"
-                    />
-                  ) : (
-                    <span
-                      className="w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-bold text-white"
-                      style={{ background: b.color }}
-                    >
-                      {b.name.charAt(0)}
-                    </span>
-                  )}
-                </div>
-                <span className="text-lg md:text-xl font-semibold tracking-tight text-slate-900">
-                  {b.name}
-                </span>
-              </div>
-            ))}
-          </motion.div>
 
-          <div className="absolute inset-y-0 left-0 w-40 bg-gradient-to-r from-[var(--bg)] to-transparent z-10" />
-          <div className="absolute inset-y-0 right-0 w-40 bg-gradient-to-l from-[var(--bg)] to-transparent z-10" />
-        </div>
-      </motion.div>
     </section>
   );
 };

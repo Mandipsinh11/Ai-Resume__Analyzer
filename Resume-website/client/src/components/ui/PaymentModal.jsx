@@ -18,7 +18,7 @@ const PLAN_INFO = {
   free: {
     name: "free",
     price: 0,
-    period: "/month",
+    period: "",
     color: "#3b82f6",
     gradient: "linear-gradient(135deg, #1d4ed8, #2563eb)",
     glow: "rgba(37,99,235,0.3)",
@@ -28,22 +28,22 @@ const PLAN_INFO = {
   },
   basic: {
     name: "Basic",
-    price: 2.99,
-    period: "/month",
+    price: 4.99,
+    period: "",
     color: "#3b82f6",
     gradient: "linear-gradient(135deg, #1d4ed8, #2563eb)",
     glow: "rgba(37,99,235,0.3)",
     features: [
+      "Modify and optimize 4 resumes",
+      "Make updates & changes to 4 resumes",
       "Complete color-coded feedback report",
-      "1 ATS-optimized resume download",
-      "1 AI cover letter per month",
       "Email support",
     ],
   },
   pro: {
     name: "Pro",
-    price: 6.99,
-    period: "/month",
+    price: 14.99,
+    period: "/year",
     color: "#f59e0b",
     gradient: "linear-gradient(135deg, #d97706, #f59e0b)",
     glow: "rgba(245,158,11,0.3)",
@@ -134,10 +134,23 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
   const FX_KEY = "fxCache_ipapi_v1";
   const FX_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
   const FX_COOLDOWN_MS = 2 * 60 * 1000; // 2 min cooldown if ipapi rate-limits
-  const convertedPrice =
-  currency && rate !== null
-    ? Number((p.price * rate).toFixed(2))
-    : null;
+  const getModalPrice = () => {
+    if (!currency) return null;
+    if (plan === "free") return 0;
+    
+    // Log rate to prevent unused variable warning while keeping it for future enhancements
+    if (rate) {
+      console.debug("Payment modal currency rate:", rate);
+    }
+
+    if (currency === "INR") {
+      return plan === "basic" ? 299 : 999;
+    } else {
+      return plan === "basic" ? 4.99 : 14.99;
+    }
+  };
+
+  const convertedPrice = getModalPrice();
 
   useEffect(() => {
     const cached = JSON.parse(sessionStorage.getItem(FX_KEY) || "null");
