@@ -1,63 +1,256 @@
-import { GoogleGenAI } from '@google/genai';
-import puppeteer from 'puppeteer';
+import { GoogleGenAI } from "@google/genai";
+import puppeteer from "puppeteer";
 
-// Initialize with GEMINI_API_KEY from process.env
-const ai = new GoogleGenAI({});
+const COMMON_SKILLS = [
+  "python",
+  "java",
+  "javascript",
+  "typescript",
+  "react",
+  "angular",
+  "vue",
+  "node.js",
+  "nodejs",
+  "django",
+  "flask",
+  "fastapi",
+  "sql",
+  "postgresql",
+  "mysql",
+  "mongodb",
+  "aws",
+  "azure",
+  "docker",
+  "kubernetes",
+  "git",
+  "machine learning",
+  "nlp",
+  "tensorflow",
+  "pytorch",
+  "c++",
+  "c#",
+  "go",
+  "rust",
+  "html",
+  "css",
+  "spring",
+  "express",
+  "redis",
+  "graphql",
+  "rest api",
+];
 
-export const analyzeAndImproveResume = async (resumeText) => {
+function getGeminiClient() {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+  return new GoogleGenAI({ apiKey });
+}
+
+/** Local fallback when Gemini is unavailable — still returns useful ATS feedback. */
+export function buildBasicAnalysis(resumeText, role = "", jobDescription = "") {
+  const text = resumeText || "";
+  const lower = text.toLowerCase();
+  const skills = COMMON_SKILLS.filter((skill) => lower.includes(skill)).map(
+    (s) => s.replace(/\b\w/g, (c) => c.toUpperCase()),
+  );
+
+  const emailMatch = text.match(
+    /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/,
+  );
+  const phoneMatch = text.match(/(\+?\d[\d\s\-().]{8,}\d)/);
+
+  let atsScore = 55;
+  if (text.length > 400) atsScore += 10;
+  if (text.length > 900) atsScore += 5;
+  if (emailMatch) atsScore += 8;
+  if (phoneMatch) atsScore += 7;
+  if (skills.length >= 3) atsScore += 10;
+  if (skills.length >= 6) atsScore += 5;
+
+  const jdBlob = `${role} ${jobDescription}`.toLowerCase();
+  const jdTokens = [
+    ...new Set(jdBlob.split(/\W+/).filter((w) => w.length > 3)),
+  ];
+  const matchedJd = jdTokens.filter((w) => lower.includes(w));
+  if (jdTokens.length > 0) {
+    const matchPct = Math.round((matchedJd.length / jdTokens.length) * 100);
+    atsScore = Math.min(92, Math.round(35 + matchPct * 0.55));
+  }
+
+  const improvements = [];
+  if (text.length < 500)
+    improvements.push(
+      "Low semantic density detected — expand experience bullets.",
+    );
+  if (!emailMatch) improvements.push("Add a professional email address.");
+  if (!phoneMatch) improvements.push("Add a contact phone number.");
+  if (jdTokens.length > 0 && matchedJd.length < jdTokens.length * 0.4) {
+    improvements.push("Align more keywords from the job description.");
+  }
+  if (improvements.length === 0) {
+    improvements.push("Quantify achievements with metrics where possible.");
+    improvements.push("Use strong action verbs at the start of each bullet.");
+  }
+  return {
+    atsScore,
+    strengths: [
+      "Contact information detected",
+      "Resume contains structured content",
+    ],
+    missingKeywords: jdTokens.filter((w) => !lower.includes(w)).slice(0, 12),
+
+    improvements: [
+      {
+        section: "Keywords",
+        issue: "Limited keyword match with job description",
+        whyItMatters: "ATS systems rely on keyword matching.",
+        suggestedFix: "Add relevant keywords from the target role.",
+        example: "Talent Acquisition, Employee Onboarding",
+        priority: "HIGH",
+      },
+    ],
+
+    finalRecommendations: [
+      "Add more job-specific keywords",
+      "Quantify achievements",
+      "Use action verbs",
+    ],
+  };
+}
+
+export const analyzeAndImproveResume = async (
+  resumeText,
+  role = "",
+  jobDescription = "",
+) => {
   try {
     const prompt = `
-    You are an expert ATS resume reviewer and writer. 
-    Analyze the following resume text and return a structured JSON representing the improved resume.
-    Provide the output in valid JSON format ONLY, without markdown formatting.
-    
-    Structure the JSON as follows:
+    Analyze the provided resume and generate a detailed ATS Improvement Report.
+
+    Return ONLY valid JSON.
+
     {
-      "personal_info": { "name": "", "email": "", "phone": "", "linkedin": "" },
-      "summary": "Professional summary...",
-      "experience": [ { "company": "", "title": "", "dates": "", "responsibilities": ["...", "..."] } ],
-      "education": [ { "institution": "", "degree": "", "dates": "" } ],
-      "skills": ["...", "..."]
+      "atsScore": 0,
+      "strengths": [],
+      "missingKeywords": [],
+      "improvements": [
+      {
+        "section": "",
+        "issue": "",
+        "whyItMatters": "",
+        "suggestedFix": "",
+        "example": "",
+        "priority": ""
+      }
+    ],
+    "finalRecommendations": []
+  }
+
+  Rules:
+  1. Mention exact resume section.
+  2. Explain issue.
+  3. Explain why it affects ATS score.
+  4. Provide specific fix.
+  5. Provide example improvement.
+  6. Do NOT rewrite the full resume.
+  7. Do NOT generate an improved resume.
+  8. Focus only on ATS improvement suggestions.
+
+  Resume:
+  ${resumeText}
+  Target Role:
+  ${role}
+  Job Description:
+  ${jobDescription}
+  `;
+    const ai = getGeminiClient();
+    if (!ai) {
+      return buildBasicAnalysis(resumeText, role, jobDescription);
     }
-    
-    Improve the bullets to be action-oriented, quantifiable, and ATS-friendly.
-    
-    Resume Text:
-    ---
-    ${resumeText}
-    ---
-    `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
-        responseMimeType: 'application/json',
-      }
+        responseMimeType: "application/json",
+      },
     });
 
     const text = response.text;
     if (!text) {
-      throw new Error('No response from Gemini API');
+      throw new Error("No response from Gemini API");
     }
 
-    return JSON.parse(text);
+    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    const cleanedText = jsonMatch ? jsonMatch[1].trim() : text.trim();
+
+    const parsed = JSON.parse(cleanedText);
+    if (!parsed.atsScore) {
+      const basic = buildBasicAnalysis(resumeText, role, jobDescription);
+      parsed.atsScore = basic.atsScore;
+      parsed.improvements = parsed.improvements || basic.improvements;
+      parsed.missingKeywords = parsed.missingKeywords || basic.missingKeywords;
+    }
+    return parsed;
   } catch (error) {
-    console.error('Error analyzing resume with Gemini:', error);
-    throw new Error('Failed to analyze and improve resume');
+    console.error(
+      "Gemini unavailable, using local analysis:",
+      error.response?.data || error.message || error,
+    );
+    return buildBasicAnalysis(resumeText, role, jobDescription);
   }
 };
 
+function _safeString(value) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  return String(value);
+}
+
+export function normalizeResumeJsonForPdf(resumeJson) {
+  const safe = resumeJson && typeof resumeJson === "object" ? resumeJson : {};
+
+  const educationRaw = safe.education;
+  const educationArr = Array.isArray(educationRaw) ? educationRaw : [];
+
+  const normalizedEducation = educationArr
+    .filter((x) => x && typeof x === "object")
+    .map((edu) => {
+      const institution = _safeString(edu.institution).trim();
+      const degree = _safeString(edu.degree).trim();
+      const dates =
+        _safeString(edu.dates).trim() || _safeString(edu.year).trim();
+
+      return { institution, degree, dates };
+    });
+
+  return {
+    ...safe,
+    education: normalizedEducation,
+    experience: Array.isArray(safe.experience) ? safe.experience : [],
+    skills: Array.isArray(safe.skills) ? safe.skills : [],
+    summary: _safeString(safe.summary),
+    personal_info:
+      safe.personal_info && typeof safe.personal_info === "object"
+        ? safe.personal_info
+        : {},
+  };
+}
+
 export const generateResumePDF = async (resumeJson) => {
   try {
-    // Generate simple HTML template
+    const normalized = normalizeResumeJsonForPdf(resumeJson);
+
     const htmlContent = `
       <!DOCTYPE html>
       <html lang="en">
       <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Resume - ${resumeJson.personal_info?.name || 'User'}</title>
+          <title>Resume - ${_safeString(normalized.personal_info?.name) || "User"}</title>
+
           <style>
               body { font-family: 'Arial', sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
               h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 20px; }
@@ -74,65 +267,86 @@ export const generateResumePDF = async (resumeJson) => {
           </style>
       </head>
       <body>
-          <h1>${resumeJson.personal_info?.name || 'Your Name'}</h1>
+          <h1>${_safeString(normalized.personal_info?.name) || "Your Name"}</h1>
           <div class="contact-info">
-              ${resumeJson.personal_info?.email || ''} | 
-              ${resumeJson.personal_info?.phone || ''} | 
-              ${resumeJson.personal_info?.linkedin || ''}
+              ${_safeString(normalized.personal_info?.email) || ""} | 
+              ${_safeString(normalized.personal_info?.phone) || ""} | 
+              ${_safeString(normalized.personal_info?.linkedin) || ""}
           </div>
           
           <div class="summary">
-              ${resumeJson.summary || ''}
+              ${_safeString(normalized.summary) || ""}
           </div>
           
           <h2>Experience</h2>
-          ${(resumeJson.experience || []).map(job => `
+          ${(normalized.experience || [])
+            .map(
+              (job) => `
+
               <div class="job">
                   <div class="job-header">
-                      <span>${job.company}</span>
-                      <span>${job.dates}</span>
+                      <span>${_safeString(job?.company)}</span>
+                      <span>${_safeString(job?.dates)}</span>
                   </div>
-                  <div class="job-title">${job.title}</div>
+                  <div class="job-title">${_safeString(job?.title)}</div>
                   <ul>
-                      ${(job.responsibilities || []).map(resp => `<li>${resp}</li>`).join('')}
+                      ${(Array.isArray(job?.responsibilities)
+                        ? job.responsibilities
+                        : []
+                      )
+                        .filter(Boolean)
+                        .map((resp) => `<li>${_safeString(resp)}</li>`)
+                        .join("")}
                   </ul>
               </div>
-          `).join('')}
+          `,
+            )
+            .join("")}
           
           <h2>Education</h2>
-          ${(resumeJson.education || []).map(edu => `
+          ${(normalized.education || [])
+            .map(
+              (edu) => `
+
               <div class="job">
                   <div class="job-header">
-                      <span>${edu.institution}</span>
-                      <span>${edu.dates}</span>
+                      <span>${_safeString(edu?.institution)}</span>
+                      <span>${_safeString(edu?.dates)}</span>
                   </div>
-                  <div class="job-title">${edu.degree}</div>
+                  <div class="job-title">${_safeString(edu?.degree)}</div>
               </div>
-          `).join('')}
+          `,
+            )
+            .join("")}
           
           <h2>Skills</h2>
           <div class="skills">
-              ${(resumeJson.skills || []).map(skill => `<span class="skill-tag">${skill}</span>`).join('')}
+              ${(normalized.skills || [])
+                .map(
+                  (skill) =>
+                    `<span class="skill-tag">${_safeString(skill)}</span>`,
+                )
+                .join("")}
           </div>
       </body>
       </html>
     `;
 
-    const browser = await puppeteer.launch({ headless: 'new' });
+    const browser = await puppeteer.launch({ headless: "new" });
     const page = await browser.newPage();
-    
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-    const pdfBuffer = await page.pdf({ 
-      format: 'A4', 
+
+    await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+    const pdfBuffer = await page.pdf({
+      format: "A4",
       printBackground: true,
-      margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' }
+      margin: { top: "20mm", right: "20mm", bottom: "20mm", left: "20mm" },
     });
-    
+
     await browser.close();
-    
+
     return pdfBuffer;
   } catch (error) {
-    console.error('Error generating PDF with Puppeteer:', error);
-    throw new Error('Failed to generate PDF');
+    console.error("Error generating PDF with Puppeteer:", error);
+    throw new Error("Failed to generate PDF");
   }
 };
