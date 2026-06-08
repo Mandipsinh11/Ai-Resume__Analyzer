@@ -16,6 +16,11 @@ def is_resume_text(text: str) -> bool:
     if not text:
         return False
     lower = text.lower()
+    
+    # Check for email or phone number patterns
+    has_email = bool(re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', text))
+    has_phone = bool(re.search(r'(\+?\d[\d\s\-().]{8,}\d)', text))
+    
     resume_keywords = [
         "experience", "education", "skills", "projects", "employment", "work",
         "history", "summary", "objective", "profile", "career", "university",
@@ -23,7 +28,7 @@ def is_resume_text(text: str) -> bool:
         "achievements", "qualification", "phone", "email", "contact"
     ]
     match_count = sum(1 for kw in resume_keywords if kw in lower)
-    return match_count >= 4 and len(text.strip()) >= 150
+    return (has_email or has_phone) and match_count >= 5 and len(text.strip()) >= 150
 
 def run_pipeline(file_path: str, jd_text: str = "") -> dict:  # type: ignore
     print(f"[1/4] Extracting text from: {file_path}")

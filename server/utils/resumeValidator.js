@@ -8,6 +8,10 @@ export function isResumeText(text) {
   if (!text || typeof text !== "string") return false;
   const lower = text.toLowerCase();
   
+  // Check for email or phone number patterns
+  const hasEmail = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/.test(text);
+  const hasPhone = /(\+?\d[\d\s\-().]{8,}\d)/.test(text);
+  
   // List of keywords commonly found in resumes
   const resumeKeywords = [
     "experience",
@@ -42,7 +46,9 @@ export function isResumeText(text) {
     }
   }
   
-  // A typical resume should contain at least 4 of these indicators
-  // and be at least 150 characters long
-  return matchCount >= 4 && text.trim().length >= 150;
+  // A professional resume MUST contain:
+  // 1. Either an email address or a phone number
+  // 2. At least 5 unique resume keywords
+  // 3. Minimum length of 150 characters
+  return (hasEmail || hasPhone) && matchCount >= 5 && text.trim().length >= 150;
 }
