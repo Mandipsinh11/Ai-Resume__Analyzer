@@ -1,9 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-<<<<<<< HEAD
-import { ArrowRight, Layout, Search, FileText, History, Settings, LogOut, Plus } from "lucide-react";
-=======
 import {
   ArrowRight,
   Layout,
@@ -14,9 +11,9 @@ import {
   LogOut,
   Plus,
 } from "lucide-react";
->>>>>>> remote-updates
 import ResumeFeedback from "../../resume-analyzer/ResumeFeedback";
 import PaymentModal from "../../../components/ui/PaymentModal";
+
 export const DashboardNavbar = ({ displayName, onLogout }) => {
   const [open, setOpen] = useState(false);
 
@@ -34,12 +31,6 @@ export const DashboardNavbar = ({ displayName, onLogout }) => {
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-[var(--primary-glow)]"
             style={{
-<<<<<<< HEAD
-              background: "linear-gradient(135deg, var(--primary), var(--primary-d))",
-            }}
-          >
-            <svg width="16" height="16" fill="none" stroke="white" strokeWidth="3" viewBox="0 0 24 24">
-=======
               background:
                 "linear-gradient(135deg, var(--primary), var(--primary-d))",
             }}
@@ -52,7 +43,6 @@ export const DashboardNavbar = ({ displayName, onLogout }) => {
               strokeWidth="3"
               viewBox="0 0 24 24"
             >
->>>>>>> remote-updates
               <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
               <polyline points="14 2 14 8 20 8" />
             </svg>
@@ -242,12 +232,6 @@ const DashboardPage = () => {
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] pb-24 overflow-x-hidden">
       {/* Background elements */}
       <div className="fixed inset-0 pointer-events-none">
-<<<<<<< HEAD
-        <div className="absolute top-0 right-0 w-[60%] h-[60%] rounded-full opacity-20 blur-[140px]"
-          style={{ background: "radial-gradient(circle, var(--primary-glow) 0%, transparent 70%)" }} />
-        <div className="absolute bottom-0 left-0 w-[40%] h-[40%] rounded-full opacity-10 blur-[120px]"
-          style={{ background: "radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)" }} />
-=======
         <div
           className="absolute top-0 right-0 w-[60%] h-[60%] rounded-full opacity-20 blur-[140px]"
           style={{
@@ -262,7 +246,6 @@ const DashboardPage = () => {
               "radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)",
           }}
         />
->>>>>>> remote-updates
       </div>
 
       <DashboardNavbar displayName={displayName} onLogout={handleLogout} />
@@ -298,12 +281,8 @@ const DashboardPage = () => {
                 variants={iV}
                 className="text-xl font-medium text-[var(--text-3)] leading-relaxed max-w-lg"
               >
-<<<<<<< HEAD
-                Your AI-powered career stack is optimized and ready for deployment.
-=======
                 Your AI-powered career stack is optimized and ready for
                 deployment.
->>>>>>> remote-updates
               </motion.p>
             </div>
 
@@ -315,18 +294,11 @@ const DashboardPage = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-<<<<<<< HEAD
-                  className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === tab.id
-                    ? "bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary-glow)]"
-                    : "text-[var(--text-3)] hover:text-[var(--text)]"
-                    }`}
-=======
                   className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
                     activeTab === tab.id
                       ? "bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary-glow)]"
                       : "text-[var(--text-3)] hover:text-[var(--text)]"
                   }`}
->>>>>>> remote-updates
                 >
                   {tab.label}
                 </button>
@@ -390,14 +362,6 @@ const DashboardPage = () => {
                 <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-[var(--primary-glow)] to-transparent opacity-10" />
                 <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-10">
                   <div className="max-w-xl text-center md:text-left">
-<<<<<<< HEAD
-                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[var(--primary)] mb-4 block">Engine Upgrade Available</span>
-                    <h3 className="text-4xl font-black text-[var(--text)] tracking-tight mb-4">
-                      Unlock the <span className="text-[var(--primary)] text-5xl">Apex</span> Tier.
-                    </h3>
-                    <p className="text-lg font-medium text-[var(--text-3)] leading-relaxed">
-                      Transform your career with unlimited AI rewrites, premium PDF exports, and one-on-one strategy reports.
-=======
                     <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[var(--primary)] mb-4 block">
                       Engine Upgrade Available
                     </span>
@@ -411,7 +375,6 @@ const DashboardPage = () => {
                     <p className="text-lg font-medium text-[var(--text-3)] leading-relaxed">
                       Transform your career with unlimited AI rewrites, premium
                       PDF exports, and one-on-one strategy reports.
->>>>>>> remote-updates
                     </p>
                   </div>
                   <div className="flex gap-4 flex-wrap justify-center">
@@ -432,14 +395,10 @@ const DashboardPage = () => {
               </motion.div>
 
               {/* Recent Documents Table */}
-<<<<<<< HEAD
-              <motion.div variants={iV} className="pt-10 border-t border-[var(--border)]">
-=======
               <motion.div
                 variants={iV}
                 className="pt-10 border-t border-[var(--border)]"
               >
->>>>>>> remote-updates
                 <div className="flex items-center justify-between mb-10">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-[var(--text-3)]">
                     System History
@@ -451,10 +410,6 @@ const DashboardPage = () => {
 
                 <div className="grid grid-cols-1 gap-4">
                   {[
-<<<<<<< HEAD
-                    { name: "Principal_Dev_V2.pdf", date: "2 hours ago", size: "1.2 MB" },
-                    { name: "Strategic_PM_Master.pdf", date: "Yesterday", size: "840 KB" },
-=======
                     {
                       name: "Principal_Dev_V2.pdf",
                       date: "2 hours ago",
@@ -465,7 +420,6 @@ const DashboardPage = () => {
                       date: "Yesterday",
                       size: "840 KB",
                     },
->>>>>>> remote-updates
                   ].map((doc, i) => (
                     <motion.div
                       key={i}
@@ -477,13 +431,9 @@ const DashboardPage = () => {
                           <FileText className="w-6 h-6" />
                         </div>
                         <div>
-<<<<<<< HEAD
-                          <p className="text-lg font-bold text-[var(--text)] leading-none mb-2">{doc.name}</p>
-=======
                           <p className="text-lg font-bold text-[var(--text)] leading-none mb-2">
                             {doc.name}
                           </p>
->>>>>>> remote-updates
                           <div className="flex gap-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-3)]">
                             <span>{doc.date}</span>
                             <span className="opacity-20">•</span>
@@ -492,13 +442,9 @@ const DashboardPage = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-4 text-[var(--text-3)] group-hover:text-[var(--primary)] transition-colors">
-<<<<<<< HEAD
-                        <span className="text-[10px] font-black uppercase tracking-widest hidden md:block">Retrieve Draft</span>
-=======
                         <span className="text-[10px] font-black uppercase tracking-widest hidden md:block">
                           Retrieve Draft
                         </span>
->>>>>>> remote-updates
                         <ArrowRight className="w-5 h-5" />
                       </div>
                     </motion.div>
@@ -529,13 +475,6 @@ const DashboardPage = () => {
                   {[
                     { label: "Elite", color: "var(--primary)" },
                     { label: "Standard", color: "var(--accent)" },
-<<<<<<< HEAD
-                    { label: "Low", color: "rose-500" }
-                  ].map((status) => (
-                    <div key={status.label} className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full" style={{ background: status.color }} />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-3)]">{status.label}</span>
-=======
                     { label: "Low", color: "rose-500" },
                   ].map((status) => (
                     <div key={status.label} className="flex items-center gap-2">
@@ -546,7 +485,6 @@ const DashboardPage = () => {
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-3)]">
                         {status.label}
                       </span>
->>>>>>> remote-updates
                     </div>
                   ))}
                 </div>
@@ -565,18 +503,12 @@ const DashboardPage = () => {
               <div className="w-24 h-24 rounded-[32px] bg-[var(--bg-2)] border-2 border-dashed border-[var(--border)] flex items-center justify-center mb-10">
                 <Layout className="w-10 h-10 text-[var(--text-3)] opacity-40" />
               </div>
-<<<<<<< HEAD
-              <h3 className="text-3xl font-black tracking-tight text-[var(--text)] mb-4">No archives found</h3>
-              <p className="text-lg font-medium text-[var(--text-3)] max-w-sm mb-12">
-                Begin your first analysis to see your history and saved drafts appear here.
-=======
               <h3 className="text-3xl font-black tracking-tight text-[var(--text)] mb-4">
                 No archives found
               </h3>
               <p className="text-lg font-medium text-[var(--text-3)] max-w-sm mb-12">
                 Begin your first analysis to see your history and saved drafts
                 appear here.
->>>>>>> remote-updates
               </p>
               <button
                 onClick={() => setActiveTab("analyze")}
@@ -591,14 +523,10 @@ const DashboardPage = () => {
 
       <AnimatePresence>
         {paymentPlan && (
-<<<<<<< HEAD
-          <PaymentModal plan={paymentPlan} onClose={() => setPaymentPlan(null)} />
-=======
           <PaymentModal
             plan={paymentPlan}
             onClose={() => setPaymentPlan(null)}
           />
->>>>>>> remote-updates
         )}
       </AnimatePresence>
     </div>

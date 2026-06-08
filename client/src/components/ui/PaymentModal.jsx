@@ -2,19 +2,12 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 
-<<<<<<< HEAD
-
-const loadRazorpayScript = () =>
-  new Promise((resolve) => {
-    if (document.getElementById("razorpay-script")) { resolve(true); return; }
-=======
 const loadRazorpayScript = () =>
   new Promise((resolve) => {
     if (document.getElementById("razorpay-script")) {
       resolve(true);
       return;
     }
->>>>>>> remote-updates
     const s = document.createElement("script");
     s.id = "razorpay-script";
     s.src = "https://checkout.razorpay.com/v1/checkout.js";
@@ -32,14 +25,10 @@ const PLAN_INFO = {
     gradient: "linear-gradient(135deg, #1d4ed8, #2563eb)",
     glow: "rgba(37,99,235,0.3)",
     features: [
-<<<<<<< HEAD
-      "Resume upload & instant ATS score","AI keyword detection overview","Structural resume analysis","Section-by-section grade summary",
-=======
       "Resume upload & instant ATS score",
       "AI keyword detection overview",
       "Structural resume analysis",
       "Section-by-section grade summary",
->>>>>>> remote-updates
     ],
   },
   basic: {
@@ -96,9 +85,6 @@ const PAYMENT_MODES = [
         <rect width="48" height="48" rx="12" fill="rgba(59,130,246,0.15)" />
         <rect x="8" y="14" width="32" height="20" rx="4" fill="#3b82f6" />
         <rect x="8" y="20" width="32" height="6" fill="#1d4ed8" />
-<<<<<<< HEAD
-        <rect x="12" y="27" width="8" height="3" rx="1" fill="white" opacity="0.7" />
-=======
         <rect
           x="12"
           y="27"
@@ -108,7 +94,6 @@ const PAYMENT_MODES = [
           fill="white"
           opacity="0.7"
         />
->>>>>>> remote-updates
       </svg>
     ),
     desc: "Credit / Debit card",
@@ -162,14 +147,11 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
   const FX_KEY = "fxCache_ipapi_v1";
   const FX_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
   const FX_COOLDOWN_MS = 2 * 60 * 1000; // 2 min cooldown if ipapi rate-limits
+
   const getModalPrice = () => {
     if (!currency) return null;
     if (plan === "free") return 0;
-<<<<<<< HEAD
-    
-=======
 
->>>>>>> remote-updates
     // Log rate to prevent unused variable warning while keeping it for future enhancements
     if (rate) {
       console.debug("Payment modal currency rate:", rate);
@@ -193,13 +175,9 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
     }
     (async () => {
       try {
-<<<<<<< HEAD
-        const lastAttempt = Number(sessionStorage.getItem(`${FX_KEY}_lastAttempt`) || "0");
-=======
         const lastAttempt = Number(
           sessionStorage.getItem(`${FX_KEY}_lastAttempt`) || "0",
         );
->>>>>>> remote-updates
         if (lastAttempt && Date.now() - lastAttempt < FX_COOLDOWN_MS) {
           setCurrency("USD");
           setRate(1);
@@ -209,25 +187,17 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
         const ipRes = await fetch("https://ipapi.co/json/");
         const ipData = await ipRes.json();
         const cur = ipData.currency || "USD";
-<<<<<<< HEAD
-        const fxRes = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
-=======
         const fxRes = await fetch(
           "https://api.exchangerate-api.com/v4/latest/USD",
         );
->>>>>>> remote-updates
         const fxData = await fxRes.json();
         const r = cur === "USD" ? 1 : fxData.rates[cur] || 1;
         setCurrency(cur);
         setRate(r);
-<<<<<<< HEAD
-        sessionStorage.setItem(FX_KEY, JSON.stringify({ c: cur, r, t: Date.now() }));
-=======
         sessionStorage.setItem(
           FX_KEY,
           JSON.stringify({ c: cur, r, t: Date.now() }),
         );
->>>>>>> remote-updates
       } catch {
         setCurrency("USD");
         setRate(1);
@@ -248,17 +218,6 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
     try {
       const scriptLoaded = await loadRazorpayScript();
       if (!scriptLoaded) {
-<<<<<<< HEAD
-        alert("Failed to load payment gateway. Check your internet connection.");
-        setLoading(false);
-        return;
-      }
-      const apiUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-      const { data } = await axios.post(
-        `${apiUrl}/api/payment/create-order`,
-        { plan, currency },
-        { headers: { Authorization: `Bearer ${token}` } }
-=======
         alert(
           "Failed to load payment gateway. Check your internet connection.",
         );
@@ -266,12 +225,11 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
         return;
       }
       const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
       const { data } = await axios.post(
         `${apiUrl}/api/payment/create-order`,
         { plan, currency },
         { headers: { Authorization: `Bearer ${token}` } },
->>>>>>> remote-updates
       );
 
       const mode = PAYMENT_MODES.find((m) => m.id === selectedMode);
@@ -295,11 +253,7 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
                 razorpay_signature: response.razorpay_signature,
                 plan,
               },
-<<<<<<< HEAD
-              { headers: { Authorization: `Bearer ${token}` } }
-=======
               { headers: { Authorization: `Bearer ${token}` } },
->>>>>>> remote-updates
             );
             if (verifyRes.data.success) {
               onClose();
@@ -310,13 +264,9 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
               }
             }
           } catch (err) {
-<<<<<<< HEAD
-            alert(`Payment verification failed: ${err.response?.data?.message || "Network error"}`);
-=======
             alert(
               `Payment verification failed: ${err.response?.data?.message || "Network error"}`,
             );
->>>>>>> remote-updates
           }
           setLoading(false);
         },
@@ -331,13 +281,9 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
       });
       rzp.open();
     } catch (err) {
-<<<<<<< HEAD
-      alert(`Order creation failed: ${err.response?.data?.message || "Network error"}`);
-=======
       alert(
         `Order creation failed: ${err.response?.data?.message || "Network error"}`,
       );
->>>>>>> remote-updates
       setLoading(false);
     }
   };
@@ -357,14 +303,10 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
         exit={{ scale: 0.92, y: 20 }}
         transition={{ type: "spring", stiffness: 260, damping: 22 }}
         className="w-full max-w-lg rounded-3xl overflow-hidden"
-<<<<<<< HEAD
-        style={{ background: "#0a0d18", border: "1px solid rgba(255,255,255,0.08)" }}
-=======
         style={{
           background: "#0a0d18",
           border: "1px solid rgba(255,255,255,0.08)",
         }}
->>>>>>> remote-updates
       >
         {/* Header */}
         <div
@@ -375,14 +317,6 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
             onClick={onClose}
             className="absolute top-5 right-5 w-8 h-8 rounded-full flex items-center justify-center transition-colors"
             style={{ background: "rgba(255,255,255,0.06)", color: "#94a3b8" }}
-<<<<<<< HEAD
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
-          >
-            ✕
-          </button>
-          <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: p.color }}>
-=======
             onMouseEnter={(e) =>
               (e.currentTarget.style.background = "rgba(255,255,255,0.1)")
             }
@@ -396,26 +330,10 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
             className="text-[10px] font-black uppercase tracking-widest mb-1"
             style={{ color: p.color }}
           >
->>>>>>> remote-updates
             Upgrade to {p.name}
           </p>
           <div className="flex items-baseline gap-1">
             {convertedPrice !== null && currency && (
-<<<<<<< HEAD
-  <span className="text-4xl font-black text-white">
-    {new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency,
-    }).format(convertedPrice)}
-  </span>
-)}
-            <span className="text-sm" style={{ color: "#475569" }}>{p.period}</span>
-          </div>
-          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
-            {p.features.slice(0, 3).map((f) => (
-              <li key={f} className="flex items-center gap-1.5 text-xs" style={{ color: "#64748b" }}>
-                <svg width="10" height="10" fill="none" stroke="#22c55e" strokeWidth="2.5" viewBox="0 0 24 24">
-=======
               <span className="text-4xl font-black text-white">
                 {new Intl.NumberFormat(undefined, {
                   style: "currency",
@@ -442,7 +360,6 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
                   strokeWidth="2.5"
                   viewBox="0 0 24 24"
                 >
->>>>>>> remote-updates
                   <path d="M20 6L9 17l-5-5" />
                 </svg>
                 {f}
@@ -453,14 +370,10 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
 
         {/* Payment Mode Selection */}
         <div className="px-7 py-6">
-<<<<<<< HEAD
-          <p className="text-[10px] font-black uppercase tracking-widest mb-4" style={{ color: "#334155" }}>
-=======
           <p
             className="text-[10px] font-black uppercase tracking-widest mb-4"
             style={{ color: "#334155" }}
           >
->>>>>>> remote-updates
             Choose Payment Method
           </p>
           <div className="grid grid-cols-2 gap-3">
@@ -472,42 +385,29 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
                   onClick={() => setSelectedMode(mode.id)}
                   className="flex items-center gap-3 p-4 rounded-2xl text-left transition-all"
                   style={{
-<<<<<<< HEAD
-                    background: active ? "rgba(37,99,235,0.1)" : "rgba(255,255,255,0.03)",
-                    border: active ? `1px solid ${p.color}` : "1px solid rgba(255,255,255,0.07)",
-=======
                     background: active
                       ? "rgba(37,99,235,0.1)"
                       : "rgba(255,255,255,0.03)",
                     border: active
                       ? `1px solid ${p.color}`
                       : "1px solid rgba(255,255,255,0.07)",
->>>>>>> remote-updates
                     boxShadow: active ? `0 0 16px ${p.glow}40` : "none",
                   }}
                 >
                   {mode.icon}
                   <div>
-<<<<<<< HEAD
-                    <p className="text-sm font-black text-white">{mode.label}</p>
-                    <p className="text-[10px]" style={{ color: "#475569" }}>{mode.desc}</p>
-=======
                     <p className="text-sm font-black text-white">
                       {mode.label}
                     </p>
                     <p className="text-[10px]" style={{ color: "#475569" }}>
                       {mode.desc}
                     </p>
->>>>>>> remote-updates
                   </div>
                   {active && (
                     <div
                       className="ml-auto w-4 h-4 rounded-full flex items-center justify-center shrink-0"
                       style={{ background: p.color }}
                     >
-<<<<<<< HEAD
-                      <svg width="8" height="8" fill="none" stroke="white" strokeWidth="3" viewBox="0 0 24 24">
-=======
                       <svg
                         width="8"
                         height="8"
@@ -516,7 +416,6 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
                         strokeWidth="3"
                         viewBox="0 0 24 24"
                       >
->>>>>>> remote-updates
                         <path d="M20 6L9 17l-5-5" />
                       </svg>
                     </div>
@@ -542,15 +441,6 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
             {loading
               ? "Processing..."
               : selectedMode
-<<<<<<< HEAD
-              ? `Pay ${new Intl.NumberFormat(undefined,{
-  style:"currency",
-  currency: currency || "USD"
-}).format(convertedPrice)} via ${PAYMENT_MODES.find((m)=>m.id===selectedMode)?.label}`
-              : "Select a Payment Method"}
-          </button>
-          <p className="text-center text-[10px] mt-3" style={{ color: "#334155" }}>
-=======
                 ? `Pay ${new Intl.NumberFormat(undefined, {
                     style: "currency",
                     currency: currency || "USD",
@@ -563,7 +453,6 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
             className="text-center text-[10px] mt-3"
             style={{ color: "#334155" }}
           >
->>>>>>> remote-updates
             Secured by Razorpay · Cancel anytime · 256-bit SSL
           </p>
         </div>
