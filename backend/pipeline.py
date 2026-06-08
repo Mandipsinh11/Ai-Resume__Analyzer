@@ -12,6 +12,19 @@ from extractor import extract_text, _clean_text # type: ignore
 from section_detector import detect_sections # type: ignore
 from skill_extractor import extract_skills  # type: ignore
 
+def is_resume_text(text: str) -> bool:
+    if not text:
+        return False
+    lower = text.lower()
+    resume_keywords = [
+        "experience", "education", "skills", "projects", "employment", "work",
+        "history", "summary", "objective", "profile", "career", "university",
+        "college", "school", "certification", "languages", "interests",
+        "achievements", "qualification", "phone", "email", "contact"
+    ]
+    match_count = sum(1 for kw in resume_keywords if kw in lower)
+    return match_count >= 4 and len(text.strip()) >= 150
+
 def run_pipeline(file_path: str, jd_text: str = "") -> dict:  # type: ignore
     print(f"[1/4] Extracting text from: {file_path}")
     extraction = extract_text(file_path) # type: ignore
@@ -23,6 +36,9 @@ def run_pipeline(file_path: str, jd_text: str = "") -> dict:  # type: ignore
         return {"error": "Extracted text too short — file may be image-based.", "char_count": extraction["char_count"]} # type: ignore
 
     raw_text = extraction["raw_text"] # type: ignore
+    if not is_resume_text(raw_text):
+        return {"error": "The uploaded file does not appear to be a valid resume. Please upload a professional resume."}
+
     
     print("=" * 50)
     print("DETECTED SECTIONS")

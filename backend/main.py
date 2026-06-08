@@ -32,8 +32,8 @@ from flask_cors import CORS
 from flask_talisman import Talisman
 from werkzeug.exceptions import HTTPException
 
-from pipeline import run_pipeline # type: ignore
-from ats_scorer import ATSScorer
+from pipeline import run_pipeline, is_resume_text # type: ignore
+from ats_scorer import ATSScorer, extract_text_from_file
 from extractor import extract_text # type: ignore
 from jd_matcher import JDMatcher
 
@@ -174,8 +174,11 @@ def ats_score():
     save_path = _save_upload(file)
 
     try:
+        resume_text = extract_text_from_file(str(save_path))
+        if not is_resume_text(resume_text):
+            return _error("The uploaded file does not appear to be a valid resume. Please upload a professional resume.")
         scorer = ATSScorer()
-        result = scorer.score_file(str(save_path), jd_text)
+        result = scorer.score(resume_text, jd_text)
         return jsonify({"success": True, **result.to_dict()})
 
     except Exception as e:
@@ -218,6 +221,8 @@ def jd_match():
 
     try:
         resume_text = extract_text_from_file(str(save_path))
+        if not is_resume_text(resume_text):
+            return _error("The uploaded file does not appear to be a valid resume. Please upload a professional resume.")
         matcher = JDMatcher()
         report = matcher.match(resume_text, jd_text)
         return jsonify({"success": True, **report.to_dict()})

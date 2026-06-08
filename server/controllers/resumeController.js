@@ -1,6 +1,7 @@
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import * as resumeService from '../services/resumeService.js';
+import { isResumeText } from '../utils/resumeValidator.js';
 
 export const uploadResume = async (req, res) => {
   try {
@@ -16,6 +17,10 @@ export const uploadResume = async (req, res) => {
     } else if (req.file.mimetype.includes('word')) {
       const data = await mammoth.extractRawText({ buffer: req.file.buffer });
       text = data.value ? data.value.replace(/\n\s*\n/g, '\n') : '';
+    }
+
+    if (!isResumeText(text)) {
+      return res.status(400).json({ error: 'The uploaded file does not appear to be a valid resume. Please upload a professional resume.' });
     }
 
     return res.status(200).json({ 
