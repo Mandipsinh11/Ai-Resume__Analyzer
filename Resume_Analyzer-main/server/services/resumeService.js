@@ -174,6 +174,7 @@ export const analyzeAndImproveResume = async (
       model: "gemini-2.0-flash",
       contents: prompt,
       config: {
+        maxOutputTokens: 4096,
         responseMimeType: "application/json",
       },
     });
