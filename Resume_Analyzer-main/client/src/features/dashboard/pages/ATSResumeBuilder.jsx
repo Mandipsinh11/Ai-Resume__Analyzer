@@ -190,17 +190,6 @@ const ATSResumeBuilder = () => {
                   />
                 </div>
                 <div>
-                  <label className={labelClasses}>Certifications</label>
-                  <textarea
-                    name="certifications"
-                    placeholder="AWS Cloud Practitioner, Azure Fundamentals, Google Data Analytics..."
-                    value={formData.certifications}
-                    onChange={handleChange}
-                    rows={5}
-                    className={textareaClasses}
-                  />
-                </div>
-                <div>
                   <label className={labelClasses}>Education Summary</label>
                   <textarea
                     name="education"
