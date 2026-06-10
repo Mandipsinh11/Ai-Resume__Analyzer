@@ -486,6 +486,27 @@ const ResumeFeedback = () => {
     }
   };
 
+  const handleAnalyzeAnother = () => {
+    setFile(null);
+    setRole("");
+    setJobDesc("");
+    setFeedback(null);
+    setFixedResumeData(null);
+    setExtractedText("");
+    setError(null);
+    setFixNotice(null);
+    setStep("idle");
+
+    if (fileRef.current) {
+      fileRef.current.value = "";
+    }
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
   const canAccessFull = true;
 
   return (
@@ -673,6 +694,12 @@ const ResumeFeedback = () => {
                       AI Fix Resume
                     </>
                   )}
+                </button>
+                <button
+                  onClick={handleAnalyzeAnother}
+                  className="px-8 py-4 rounded-xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 shadow-xl shadow-[var(--primary-glow)] flex items-center justify-center gap-2"
+                >
+                  Analyze Another Resume
                 </button>
               </div>
             </div>

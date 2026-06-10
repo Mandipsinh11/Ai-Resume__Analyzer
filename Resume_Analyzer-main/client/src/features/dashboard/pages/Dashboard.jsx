@@ -195,7 +195,7 @@ const DashboardPage = () => {
       title: "Create ATS Resume",
       desc: "Build a new ATS-optimized resume from scratch with AI guidance.",
       action: "Start Building",
-      tab: null,
+      route: "/create-ats-resume",
       icon: "📄",
       accent: "var(--accent-glow)",
       aBorder: "var(--accent)",
@@ -205,7 +205,7 @@ const DashboardPage = () => {
       title: "Optimization History",
       desc: "Review previous versions and tracking feedback over time.",
       action: "View History",
-      tab: "overview",
+      route: "/optimization-history",
       icon: "🕒",
       accent: "rgba(100, 116, 139, 0.1)",
       aBorder: "var(--border)",
@@ -322,7 +322,13 @@ const DashboardPage = () => {
                   <motion.div
                     key={tool.title}
                     variants={iV}
-                    onClick={() => tool.tab && setActiveTab(tool.tab)}
+                    onClick={() => {
+                      if (tool.route) {
+                        navigate(tool.route);
+                      } else if (tool.tab) {
+                        setActiveTab(tool.tab);
+                      }
+                    }}
                     className="group relative p-10 rounded-[40px] bg-[var(--bg-2)] border border-[var(--border)] overflow-hidden transition-all duration-500 hover:shadow-2xl hover:scale-[1.02] cursor-pointer"
                   >
                     <div className="absolute top-0 right-0 w-32 h-32 opacity-10 bg-gradient-to-br from-white to-transparent blur-2xl group-hover:opacity-20 transition-opacity" />

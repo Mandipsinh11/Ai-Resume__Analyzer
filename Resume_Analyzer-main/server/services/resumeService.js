@@ -130,6 +130,16 @@ export const analyzeAndImproveResume = async (
     Analyze the provided resume and generate a detailed ATS Improvement Report.
 
     Return ONLY valid JSON.
+    IMPORTANT:
+- Response must start with {
+- Response must end with }
+- No markdown
+- No code fences
+- No explanations
+- No notes
+- No text before JSON
+- No text after JSON
+- Output must be valid JSON.parse() compatible
 
     {
       "atsScore": 0,
@@ -180,20 +190,42 @@ export const analyzeAndImproveResume = async (
     });
 
     const text = response.text;
+    console.log("========== GEMINI RAW RESPONSE ==========");
+    console.log(text);
+    console.log("=========================================");
+
     if (!text) {
       throw new Error("No response from Gemini API");
     }
 
     const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-    const cleanedText = jsonMatch ? jsonMatch[1].trim() : text.trim();
 
-    const parsed = JSON.parse(cleanedText);
+    let cleanedText = jsonMatch ? jsonMatch[1].trim() : text.trim();
+
+    const objectMatch = cleanedText.match(/\{[\s\S]*\}$/);
+
+    if (objectMatch) {
+      cleanedText = objectMatch[0];
+    }
+
+    let parsed;
+
+    try {
+      parsed = JSON.parse(cleanedText);
+    } catch (err) {
+      console.error("❌ JSON Parse Failed");
+      console.error("❌ Raw Response:");
+      console.error(cleanedText);
+      throw err;
+    }
+
     if (!parsed.atsScore) {
       const basic = buildBasicAnalysis(resumeText, role, jobDescription);
       parsed.atsScore = basic.atsScore;
       parsed.improvements = parsed.improvements || basic.improvements;
       parsed.missingKeywords = parsed.missingKeywords || basic.missingKeywords;
     }
+
     return parsed;
   } catch (error) {
     console.error(

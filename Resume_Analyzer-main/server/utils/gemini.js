@@ -219,7 +219,16 @@ async function callGroq(prompt, options = {}) {
       }
 
       const data = await response.json();
+
+      console.log("========== RAW GROQ RESPONSE ==========");
+      console.log(JSON.stringify(data, null, 2));
+      console.log("=======================================");
+
       const text = data?.choices?.[0]?.message?.content?.trim();
+
+      if (!text) {
+        throw new Error(`Empty response from Groq model ${model}`);
+      }
       if (!text) throw new Error(`Empty response from Groq model ${model}`);
 
       console.log(`✓ Groq model ${model} succeeded`);
@@ -296,6 +305,10 @@ function safeJsonParse(text) {
     }
   }
 
+  console.log("========== RAW AI RESPONSE ==========");
+  console.log(input);
+  console.log("====================================");
+
   throw new Error(
     `Invalid JSON response from AI: ${input.slice(0, MAX_ERROR_TEXT_CHARS)}`,
   );
@@ -351,6 +364,46 @@ Return ONLY a JSON array of strings. No markdown, no explanations.`;
     maxTokens: 512,
     responseMimeType: "application/json",
   });
+  return safeJsonParse(resultText);
+}
+
+export async function generateATSResume(formData) {
+  const prompt = `
+Create an ATS-optimized resume.
+
+Name: ${formData.fullName}
+Target Role: ${formData.targetRole}
+Skills: ${formData.skills}
+certifications: formData.certifications || "",
+Experience: ${formData.experience}
+Education: ${formData.education}
+Projects: ${formData.projects}
+
+Return ONLY valid JSON:
+
+{
+  "professionalSummary": "",
+  "skills": "",
+  "experience": "",
+  "projects": "",
+  "education": ""
+}
+
+Rules:
+- No markdown
+- No explanations
+- No code blocks
+- ATS optimized
+- Professional language
+- Improve content but do not invent fake experience.
+`;
+
+  const resultText = await callAI(prompt, {
+    temperature: 0.4,
+    maxTokens: 2048,
+    responseMimeType: "application/json",
+  });
+
   return safeJsonParse(resultText);
 }
 
