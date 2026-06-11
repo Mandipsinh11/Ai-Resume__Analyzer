@@ -58,7 +58,7 @@ const ATSResumeBuilder = () => {
       });
     } catch (error) {
       console.error("Resume generation error:", error);
-      alert("Failed to generate ATS resume.");
+      alert("Failed to generate Resume with ATS.");
     } finally {
       setIsGenerating(false);
     }
@@ -78,7 +78,7 @@ const ATSResumeBuilder = () => {
         <div className="flex items-center justify-between gap-4 mb-10">
           <div>
             <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-[var(--text)] to-[var(--text-3)] bg-clip-text text-transparent">
-              Create ATS Resume
+              Create Resume with ATS
             </h1>
             <p className="text-[var(--text-3)] mt-1">
               Build an optimized, machine-readable resume from scratch with AI.
@@ -282,7 +282,7 @@ const ATSResumeBuilder = () => {
                       Parsing Metrics...
                     </>
                   ) : (
-                    "✨ Generate ATS Resume"
+                    "✨ Generate Resume with ATS"
                   )}
                 </button>
               </div>

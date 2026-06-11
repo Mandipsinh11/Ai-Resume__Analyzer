@@ -193,7 +193,7 @@ const DashboardPage = () => {
       badge: null,
     },
     {
-      title: "Create ATS Resume",
+      title: "Create Resume with ATS",
       desc: "Build a new ATS-optimized resume from scratch with AI guidance.",
       action: "Start Building",
       route: "/create-ats-resume",
