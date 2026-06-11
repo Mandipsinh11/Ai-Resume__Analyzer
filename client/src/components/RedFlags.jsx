@@ -1,12 +1,21 @@
 const RedFlags = ({ flags }) => {
-  return (
-    <div className="bg-white p-6 rounded-3xl border">
-      <h3 className="font-bold mb-4 text-red-600">Red Flags</h3>
+  if (!flags?.length) return null;
 
-      <ul className="space-y-3">
-        {flags?.map((item, index) => (
-          <li key={index} className="text-red-600">
-            ⚠ {item}
+  return (
+    <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+      <h3 className="text-2xl font-bold text-red-600 mb-6">Red Flags</h3>
+
+      <ul className="space-y-4">
+        {flags.map((item, index) => (
+          <li
+            key={index}
+            className="flex items-start gap-3 p-4 rounded-2xl bg-red-50 border border-red-100"
+          >
+            <span className="text-red-500 font-bold shrink-0">⚠</span>
+
+            <span className="text-sm font-medium text-red-700 leading-7">
+              {item}
+            </span>
           </li>
         ))}
       </ul>
