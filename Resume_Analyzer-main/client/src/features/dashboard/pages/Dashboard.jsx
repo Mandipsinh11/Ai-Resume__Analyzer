@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import ResumeFeedback from "../../resume-analyzer/ResumeFeedback";
 import PaymentModal from "../../../components/ui/PaymentModal";
+
 export const DashboardNavbar = ({ displayName, onLogout }) => {
   const [open, setOpen] = useState(false);
 
@@ -192,7 +193,7 @@ const DashboardPage = () => {
       badge: null,
     },
     {
-      title: "Create ATS Resume",
+      title: "Create Resume with ATS",
       desc: "Build a new ATS-optimized resume from scratch with AI guidance.",
       action: "Start Building",
       route: "/create-ats-resume",
@@ -539,3 +540,4 @@ const DashboardPage = () => {
 };
 
 export default DashboardPage;
+

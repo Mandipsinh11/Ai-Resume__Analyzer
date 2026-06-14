@@ -229,7 +229,6 @@ async function callGroq(prompt, options = {}) {
       if (!text) {
         throw new Error(`Empty response from Groq model ${model}`);
       }
-      if (!text) throw new Error(`Empty response from Groq model ${model}`);
 
       console.log(`✓ Groq model ${model} succeeded`);
       return text;
@@ -374,7 +373,7 @@ Create an ATS-optimized resume.
 Name: ${formData.fullName}
 Target Role: ${formData.targetRole}
 Skills: ${formData.skills}
-certifications: formData.certifications || "",
+certifications: ${formData.certifications || ""}
 Experience: ${formData.experience}
 Education: ${formData.education}
 Projects: ${formData.projects}
@@ -410,76 +409,269 @@ Rules:
 // ─── Local fallback ────────────────────────────────────────────────────────────
 function buildLocalFixResume(resumeText, jobDescription = "", role = "") {
   const basic = buildBasicAnalysis(resumeText, role, jobDescription);
-  const improvementBlock = basic.improvements
-    .map(
-      (item, i) =>
-        `${i + 1}. ${typeof item === "string" ? item : item.suggestedFix || item.issue || "Resume improvement applied"}`,
-    )
-    .join("\n");
+  const cleanRole = role ? role.trim() : "Software Engineer";
+
+  // Parse lines to extract sections
+  const lines = resumeText.split("\n");
+  const parsedSectionsMap = {};
+  let currentSectionName = "Header & Contact Info";
+  let currentSectionLines = [];
+
+  const sectionPatterns = [
+    { name: "Professional Summary", regex: /^(summary|professional summary|profile|objective|career objective|about me)$/i },
+    { name: "Work Experience", regex: /^(experience|work experience|employment history|professional experience|work history|career history|employment)$/i },
+    { name: "Skills", regex: /^(skills|technical skills|core competencies|areas of expertise|technologies|skills & expertise|key skills|tools)$/i },
+    { name: "Education", regex: /^(education|academic profile|academic history|academic qualifications|education & credentials|credentials)$/i },
+    { name: "Projects", regex: /^(projects|personal projects|key projects|technical projects|academic projects)$/i },
+    { name: "Certifications", regex: /^(certifications|licenses|certifications & licenses|courses|professional development|awards|achievements)$/i },
+  ];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Check if this line matches a section header pattern
+    let foundHeader = null;
+    if (trimmed.length < 50) {
+      const cleanLine = trimmed.replace(/[:\-\s•*#]+$/, "").replace(/^[:\-\s•*#]+/, "").trim();
+      for (const pattern of sectionPatterns) {
+        if (pattern.regex.test(cleanLine)) {
+          foundHeader = pattern.name;
+          break;
+        }
+      }
+    }
+
+    if (foundHeader) {
+      if (currentSectionLines.length > 0 || currentSectionName !== "Header & Contact Info") {
+        parsedSectionsMap[currentSectionName] = currentSectionLines.join("\n").trim();
+      }
+      currentSectionName = foundHeader;
+      currentSectionLines = [];
+    } else {
+      currentSectionLines.push(line);
+    }
+  }
+
+  if (currentSectionLines.length > 0 || currentSectionName !== "Header & Contact Info") {
+    parsedSectionsMap[currentSectionName] = currentSectionLines.join("\n").trim();
+  }
+
+  // Define the standard set of sections we want to generate recommendations for
+  const allSectionNames = [
+    "Header & Contact Info",
+    "Professional Summary",
+    "Work Experience",
+    "Skills",
+    "Education",
+    "Projects",
+    "Certifications"
+  ];
+
+  const sectionsList = [];
+
+  for (const secName of allSectionNames) {
+    const originalText = parsedSectionsMap[secName];
+    const isMissing = !originalText;
+
+    let sectionData = {
+      name: secName,
+      scoreBefore: isMissing ? 0 : 55,
+      scoreAfter: 95,
+      status: "needs_work",
+      issues: [],
+      originalText: originalText || `[This section is missing from your resume]`,
+      optimizedText: "",
+      explanation: ""
+    };
+
+    if (secName === "Header & Contact Info") {
+      const text = originalText || resumeText.split("\n").slice(0, 3).join("\n") || "Name & contact info";
+      sectionData.originalText = text;
+      const hasLinkedIn = /linkedin\.com/i.test(text);
+      const hasGitHub = /github\.com/i.test(text);
+      
+      if (hasLinkedIn && hasGitHub) {
+        sectionData.scoreBefore = 85;
+        sectionData.scoreAfter = 96;
+        sectionData.status = "good";
+        sectionData.issues = ["Ensure your portfolio link anchors are clickable and point to active repositories."];
+        sectionData.optimizedText = text;
+        sectionData.explanation = "Verified professional URLs. Keeping clean visual alignments for standard ATS parsing.";
+      } else {
+        sectionData.scoreBefore = 60;
+        sectionData.scoreAfter = 95;
+        sectionData.issues = ["Missing links to professional portfolios (like GitHub or LinkedIn)."];
+        sectionData.optimizedText = `${text}\nLinkedIn: linkedin.com/in/candidate | GitHub: github.com/candidate`;
+        sectionData.explanation = "Added professional placeholder links. Major ATS systems screen for online profiles (GitHub/LinkedIn) to verify project claims.";
+      }
+    }
+
+    else if (secName === "Professional Summary") {
+      if (isMissing) {
+        sectionData.issues = [`Missing professional summary matching target role: ${cleanRole}.`];
+        sectionData.optimizedText = `Results-oriented professional aiming to excel as a ${cleanRole}. Proficient in core concepts, troubleshooting, and collaborative development. Eager to align skills with team goals to deliver optimized solutions.`;
+        sectionData.explanation = "Added role-specific professional summary to give parsers immediate alignment context.";
+      } else {
+        sectionData.scoreBefore = 45;
+        sectionData.scoreAfter = 96;
+        sectionData.issues = [
+          "Summary lacks clear keyword correlation with the target role.",
+          "Does not state key technical competencies."
+        ];
+        sectionData.optimizedText = `Results-oriented professional aiming to transition into a ${cleanRole} role. Proficient in core technologies highlighted in the JD, with a focus on problem-solving, quality delivery, and collaborative performance.`;
+        sectionData.explanation = "Rewrote summary to map directly to the target role requirements and core technologies.";
+      }
+    }
+
+    else if (secName === "Work Experience") {
+      if (isMissing) {
+        sectionData.issues = ["Missing critical Work Experience section."];
+        sectionData.optimizedText = `Work Experience\n• ${cleanRole} (Freelance / Personal projects)\n  - Led end-to-end development of 3 web platforms, optimizing task pipelines and resolving 15+ high-priority bugs.\n  - Collaborated with remote partners using Agile/Scrum workflow, improving sprint velocity by 12%.\n  - Configured project servers, utilizing Git version control and modern build setups.`;
+        sectionData.explanation = "Added work experience draft highlighting projects/freelance role context to satisfy minimal ATS parser experience filters.";
+      } else {
+        sectionData.scoreBefore = 35;
+        sectionData.scoreAfter = 96;
+        sectionData.issues = [
+          "Bullets lack quantified achievements and action verbs.",
+          "Missing job description keyword integration."
+        ];
+        
+        const bullets = originalText.split(/\n/g).map(b => b.trim().replace(/^•\s*|^\-\s*/, "")).filter(Boolean);
+        if (bullets.length > 0) {
+          sectionData.optimizedText = bullets.map((bullet, idx) => {
+            if (idx === 0) return `• Spearheaded engineering lifecycle for target ${cleanRole} features, improving runtime performance by 18%.`;
+            if (idx === 1) return `• Optimized system performance, reducing latencies and resolving 10+ blocker issues.`;
+            return `• Collaborated within Agile squad to deliver production updates, boosting user engagement metrics by 15%.`;
+          }).join("\n");
+        } else {
+          sectionData.optimizedText = `• Executed 4 key project sprints on schedule, optimizing task pipelines and resolving 15+ high-priority blockers.\n• Collaborated within a cross-functional squad using Agile/Scrum, boosting velocity by 12%.\n• Leveraged core project technologies to build scalable system features.`;
+        }
+        sectionData.explanation = "Optimized experience correlation. Replaced passive statements with action-driven outcomes and quantified impact metrics (18% performance, 10+ blockers, 15% user metrics).";
+      }
+    }
+
+    else if (secName === "Skills") {
+      const addedSkills = (basic.missingKeywords || []).slice(0, 6).join(", ") || "Technical stack, Git, Docker";
+      if (isMissing) {
+        sectionData.issues = ["Missing a dedicated skills list."];
+        sectionData.optimizedText = `Technical Skills\n• Languages: JavaScript, Python, HTML5, CSS3\n• Tools & Frameworks: ${addedSkills}, Node.js, Agile/Scrum`;
+        sectionData.explanation = "Added categorized skills section to build high keyword density matching.";
+      } else {
+        sectionData.scoreBefore = 50;
+        sectionData.scoreAfter = 96;
+        sectionData.issues = [
+          "Skills section lacks structured categorization.",
+          "Missing critical technical competencies."
+        ];
+        sectionData.optimizedText = `• Core Technologies: ${addedSkills}\n• Methodologies & Tools: Git, Docker, Agile/Scrum, Software Development Life Cycle (SDLC)`;
+        sectionData.explanation = "Grouped skills into parsable blocks (Core Technologies, Methodologies) to increase keyword density score for the ATS filter.";
+      }
+    }
+
+    else if (secName === "Education") {
+      if (isMissing) {
+        sectionData.issues = ["Education section is missing."];
+        sectionData.optimizedText = `Education & Academic Path\n• Bachelor of Science in relevant field / Technical Coursework\n• Continuous learning in target domain methodologies`;
+        sectionData.explanation = "Added education draft block to fill essential structural section requirements.";
+      } else {
+        sectionData.scoreBefore = 80;
+        sectionData.scoreAfter = 95;
+        sectionData.status = "good";
+        sectionData.issues = ["Could strengthen section by explicitly highlighting coursework relevant to target role."];
+        sectionData.optimizedText = `${originalText}\n• Relevant Academic Path: Continuous learning in target domain methodologies & algorithms`;
+        sectionData.explanation = "Formatted education headers clearly for standard parser extraction.";
+      }
+    }
+
+    else if (secName === "Projects") {
+      if (isMissing) {
+        sectionData.issues = ["Missing Projects section completely."];
+        sectionData.optimizedText = `Projects\n• Technical Portfolio Application\n  - Built and deployed a web app using HTML, CSS, JavaScript, improving user engagement by 25%.\n  - Optimized client-side search query logic, reducing lookup latency by 40%.\n  - Tracked version configurations using Git and deployed cloud-based assets.`;
+        sectionData.explanation = "Projects verify active skill-in-context capabilities. Added a placeholder project framework.";
+      } else {
+        sectionData.scoreBefore = 40;
+        sectionData.scoreAfter = 96;
+        sectionData.issues = ["Project bullets lack explicit stack tagging and measurable outcomes."];
+        sectionData.optimizedText = `• Technical Project Portfolio\n  - Built responsive frontend utilizing HTML, CSS, and modern scripting, enhancing visual load times by 20%.\n  - Engineered robust backend routing patterns, ensuring secure and fast client-server handshake.`;
+        sectionData.explanation = "Added stack labels and performance indicators to projects to elevate credentials verification score.";
+      }
+    }
+
+    else if (secName === "Certifications") {
+      if (isMissing) {
+        sectionData.issues = ["No relevant certifications found."];
+        sectionData.optimizedText = `Certifications & Professional Development\n• AWS Certified Cloud Practitioner / relevant domain certificates\n• Professional Certificate in Tech Methodologies`;
+        sectionData.explanation = "Adding certifications satisfies search refinement filter criteria often applied by human recruiters.";
+      } else {
+        sectionData.scoreBefore = 75;
+        sectionData.scoreAfter = 95;
+        sectionData.status = "good";
+        sectionData.issues = ["Highlight professional credentials related to the job description."];
+        sectionData.optimizedText = `${originalText}\n• Continuous Professional Development: Certification in target role technologies`;
+        sectionData.explanation = "Cleaned up and listed certifications with emphasis on modern domain keywords.";
+      }
+    }
+
+    sectionsList.push(sectionData);
+  }
+
+  // Also include any other custom sections the user has in their resume, so we don't lose them!
+  for (const customName in parsedSectionsMap) {
+    if (!allSectionNames.includes(customName)) {
+      sectionsList.push({
+        name: customName,
+        scoreBefore: 70,
+        scoreAfter: 95,
+        status: "good",
+        issues: ["Verify section alignment to job role keywords."],
+        originalText: parsedSectionsMap[customName],
+        optimizedText: parsedSectionsMap[customName],
+        explanation: "Maintained original custom section and formatted alignment details."
+      });
+    }
+  }
+
+  const scoreBefore = Math.min(84, Math.max(35, (basic.atsScore || 70) - 8));
+  const fallbackSections = sectionsList;
 
   return {
-    improvedResume: `${resumeText.trim()}\n\n--- Recommended improvements ---\n${improvementBlock}`,
-    atsScoreBefore: Math.max(35, (basic.atsScore || 70) - 12),
-    atsScoreAfter: basic.atsScore || 70,
-    improvements: basic.improvements.map((item) =>
-      typeof item === "string"
-        ? item
-        : item.suggestedFix || item.issue || "Resume improvement applied",
-    ),
+    atsScoreBefore: scoreBefore,
+    atsScoreAfter: 96,
     keywordsAdded: (basic.missingKeywords || []).slice(0, 8),
+    sections: fallbackSections,
+    overview: {
+      overall_ats_score: 96,
+      pass_probability: 95,
+      top10_match_percent: 94,
+      internship_count: 1,
+      total_experience_months: 6,
+    },
+
     strengths: [
       "Strong technical skills",
       "Relevant projects",
       "Good ATS formatting",
       "Clear resume structure",
     ],
+
     redFlags: [
       "Missing quantified achievements",
       "Keyword gaps detected",
       "Limited professional experience",
       "Weak impact metrics",
     ],
+
     missingKeywords: basic.missingKeywords || [],
+
     recruiterImpression: {
       impression: "Needs improvement",
       photoRisk: "Low",
       sections: "Average",
       asset: "Projects",
     },
-    overview: {
-      overall_ats_score: basic.atsScore || 70,
-      pass_probability: 60,
-      top10_match_percent: 55,
-      internship_count: 1,
-      total_experience_months: 6,
-    },
-    sectionScores: {
-      keywords_score: 65,
-      experience_depth_score: 55,
-      formatting_score: 80,
-      skills_relevance_score: 70,
-      education_score: 75,
-      quantified_achievements_score: 50,
-    },
-    radarData: [
-      { subject: "Experience", candidate: 55, top10: 85 },
-      { subject: "Skills", candidate: 70, top10: 90 },
-      { subject: "Achievements", candidate: 50, top10: 88 },
-      { subject: "Keywords", candidate: 65, top10: 92 },
-      { subject: "Education", candidate: 75, top10: 80 },
-    ],
-    blockers: [
-      "Limited quantified achievements",
-      "Missing high-value ATS keywords",
-      "Experience section lacks impact metrics",
-      "Projects need stronger descriptions",
-      "Professional summary can be improved",
-    ],
-    verdict: {
-      status: "Would not shortlist",
-      reason:
-        "Candidate shows potential but requires stronger evidence of measurable impact, better keyword alignment, and more achievement-focused experience.",
-    },
+
     deepAnalysis: {
       candidateName: "",
       atsScore: basic.atsScore || 70,
@@ -498,7 +690,7 @@ function buildLocalFixResume(resumeText, jobDescription = "", role = "") {
         immediateColor: "amber",
         photoRisk: "Low risk",
         photoColor: "green",
-        sections: "Average",
+        sections: "Too many",
         sectionsColor: "amber",
         biggestAsset: "Education",
         assetColor: "green",
@@ -580,22 +772,16 @@ function buildLocalFixResume(resumeText, jobDescription = "", role = "") {
       ],
       rewrites: [
         {
-          title: "Profile Summary",
-          oldText: "Seeking an entry level opportunity to apply my skills.",
+          title: "Professional Summary",
+          oldText: "Seeking an entry-level opportunity to apply my skills...",
           newText:
-            "Results-driven candidate with strong technical skills and project experience seeking to contribute to innovative teams.",
+            "Results-driven professional with expertise in [target domain], seeking to leverage [specific skills] at [company type] to deliver [specific outcome].",
         },
         {
-          title: "Project Bullet Point",
+          title: "Experience Bullet Point",
           oldText: "Worked on various projects and helped the team.",
           newText:
-            "Delivered 3 cross-functional projects on time, improving workflow efficiency by 20%.",
-        },
-        {
-          title: "Extra-Curricular Activity",
-          oldText: "Participated in college events.",
-          newText:
-            "Coordinated 5 college events involving 300+ participants and managed event logistics.",
+            "Delivered 3 cross-functional projects on time, reducing team workload by 20% through process automation and documentation improvements.",
         },
       ],
       finalVerdict: {
@@ -608,6 +794,13 @@ function buildLocalFixResume(resumeText, jobDescription = "", role = "") {
           "The core structure is solid and the qualifications are relevant. These are fixable issues that can be addressed in 1-2 weeks of focused effort.",
       },
     },
+
+    verdict: {
+      status: "Would not shortlist",
+      reason:
+        "Candidate shows potential but requires stronger evidence of measurable impact, better keyword alignment, and more achievement-focused experience before competing with top applicants.",
+    },
+
     _source: "local",
   };
 }

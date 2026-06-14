@@ -147,6 +147,7 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
   const FX_KEY = "fxCache_ipapi_v1";
   const FX_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
   const FX_COOLDOWN_MS = 2 * 60 * 1000; // 2 min cooldown if ipapi rate-limits
+
   const getModalPrice = () => {
     if (!currency) return null;
     if (plan === "free") return 0;
@@ -224,7 +225,7 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
         return;
       }
       const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
       const { data } = await axios.post(
         `${apiUrl}/api/payment/create-order`,
         { plan, currency },

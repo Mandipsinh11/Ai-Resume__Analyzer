@@ -9,10 +9,9 @@ import RedFlags from "../../components/RedFlags";
 import RecruiterImpression from "../../components/RecruiterImpression";
 import MissingKeywords from "../../components/MissingKeywords";
 import CompetitivenessComparison from "../../components/CompetitivenessComparison";
-import { CertificationGapAnalyzer } from "../../components/CertificationGapAnalyzer";
 import Top10Changes from "../../components/Top10Changes";
-import SectionRewrites from "../../components/SectionRewrites";
 import HiringVerdict from "../../components/HiringVerdict";
+import SectionRewrites from "../../components/SectionRewrites";
 import {
   addOptimizationEntry,
   updateOptimizationEntry,
@@ -27,6 +26,8 @@ import {
   UploadCloud,
   Zap,
   Target,
+  Copy,
+  Check
 } from "lucide-react";
 
 // ─────────────────────────────────────────────
@@ -152,7 +153,7 @@ const mapNodeAnalysisToFeedback = (analysisData, text, role, jobDesc) => {
   const improvements = analysisData.improvements || [];
 
   return {
-    score: analysisData.atsScore ?? analysisData.score ?? 46,
+    score: analysisData.atsScore ?? 75,
 
     best: {
       title: "Resume Strengths",
@@ -251,6 +252,281 @@ const mapPythonAnalysisToFeedback = (result, role, jobDesc) => {
 };
 
 // ─────────────────────────────────────────────
+// Interactive Section Optimizer
+// ─────────────────────────────────────────────
+const InteractiveSectionOptimizer = ({ sections }) => {
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [copiedSectionIdx, setCopiedSectionIdx] = useState(null);
+  const [copiedAll, setCopiedAll] = useState(false);
+  const [appliedSections, setAppliedSections] = useState({});
+
+  if (!sections || !sections.length) return null;
+
+  const currentSection = sections[selectedIdx];
+
+  const handleCopySection = (text, idx) => {
+    navigator.clipboard.writeText(text);
+    setCopiedSectionIdx(idx);
+    setTimeout(() => setCopiedSectionIdx(null), 2000);
+  };
+
+  const handleCopyAll = () => {
+    const fullOptimizedText = sections.map(s => `=== ${s.name} ===\n${s.optimizedText}`).join("\n\n");
+    navigator.clipboard.writeText(fullOptimizedText);
+    setCopiedAll(true);
+    setTimeout(() => setCopiedAll(false), 2000);
+  };
+
+  const toggleApplied = (idx) => {
+    setAppliedSections(prev => ({
+      ...prev,
+      [idx]: !prev[idx]
+    }));
+  };
+
+  const totalApplied = Object.values(appliedSections).filter(Boolean).length;
+  const progressPct = Math.round((totalApplied / sections.length) * 100);
+
+  const getStatusConfig = (status) => {
+    switch (status) {
+      case "optimized":
+        return {
+          label: "Optimized",
+          color: "text-emerald-600 bg-emerald-50 border-emerald-100",
+          iconColor: "text-emerald-500"
+        };
+      case "good":
+        return {
+          label: "Good Progress",
+          color: "text-blue-600 bg-blue-50 border-blue-100",
+          iconColor: "text-blue-500"
+        };
+      default:
+        return {
+          label: "Needs Work",
+          color: "text-red-600 bg-red-50 border-red-100",
+          iconColor: "text-red-500"
+        };
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-3xl p-8 border border-[var(--border)] shadow-xl mb-10 overflow-hidden text-left">
+      {/* Header bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 pb-6 border-b border-gray-100">
+        <div>
+          <h3 className="text-2xl font-black tracking-tight text-[var(--text)] flex items-center gap-2">
+            <Zap className="w-6 h-6 text-[var(--primary)]" /> Section-by-Section Optimizer
+          </h3>
+          <p className="text-sm font-medium text-[var(--text-3)] mt-1">
+            Redesign and implement AI optimizations directly into your resume structure.
+          </p>
+        </div>
+        <button
+          onClick={handleCopyAll}
+          className="px-6 py-3 rounded-xl bg-[var(--primary)] text-white text-xs font-black uppercase tracking-[0.15em] shadow-lg shadow-[var(--primary-glow)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+        >
+          {copiedAll ? (
+            <>
+              <Check className="w-4 h-4" /> Copied Full Resume!
+            </>
+          ) : (
+            <>
+              <Copy className="w-4 h-4" /> Copy Entire Optimized Text
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Progress tracking banner */}
+      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-2xl p-6 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center font-black text-sm">
+            {totalApplied}/{sections.length}
+          </div>
+          <div>
+            <h4 className="text-sm font-black text-[var(--text)]">Optimization Progress Checklist</h4>
+            <p className="text-xs text-[var(--text-3)] font-medium">Mark sections as applied once you update your document.</p>
+          </div>
+        </div>
+        <div className="flex-1 max-w-xs md:max-w-md bg-white rounded-full h-3 relative overflow-hidden border border-gray-100">
+          <div
+            className="h-full bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] transition-all duration-500 rounded-full"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+        <span className="text-xs font-black text-[var(--primary)] uppercase tracking-wider md:w-16 text-right">
+          {progressPct}% Done
+        </span>
+      </div>
+
+      {/* Workspace Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Sidebar Navigation */}
+        <div className="lg:col-span-4 space-y-3 max-h-[500px] overflow-y-auto pr-2 no-scrollbar">
+          {sections.map((sec, idx) => {
+            const isSelected = selectedIdx === idx;
+            const isApplied = appliedSections[idx];
+            const statusConfig = getStatusConfig(sec.status);
+
+            return (
+              <div
+                key={idx}
+                onClick={() => setSelectedIdx(idx)}
+                className={`group cursor-pointer p-4 rounded-2xl border transition-all relative overflow-hidden flex items-center justify-between ${
+                  isSelected
+                    ? "bg-[var(--bg)] border-[var(--primary)] shadow-md translate-x-1"
+                    : "bg-white border-[var(--border)] hover:border-[var(--border-2)] hover:bg-[var(--bg-2)]/30"
+                }`}
+              >
+                {/* Visual feedback selection bar */}
+                {isSelected && (
+                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[var(--primary)]" />
+                )}
+                
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleApplied(idx);
+                    }}
+                    className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer ${
+                      isApplied
+                        ? "bg-emerald-500 border-emerald-600 text-white"
+                        : "border-[var(--text-3)] bg-white hover:border-[var(--primary)]"
+                    }`}
+                  >
+                    {isApplied && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                  </div>
+                  <div className="min-w-0">
+                    <span className={`text-sm font-black block truncate ${isSelected ? "text-[var(--primary)]" : "text-[var(--text)]"}`}>
+                      {sec.name}
+                    </span>
+                    <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded-full mt-1 border uppercase tracking-wider ${statusConfig.color}`}>
+                      {statusConfig.label}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end shrink-0 gap-1 pl-2">
+                  <span className="text-[10px] font-black text-[var(--text-2)] uppercase tracking-wider">
+                    {sec.scoreBefore} → {sec.scoreAfter}
+                  </span>
+                  <div className="w-12 h-1 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-[var(--primary)]" style={{ width: `${sec.scoreAfter}%` }} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Right Detail Workspace */}
+        <div className="lg:col-span-8 flex flex-col min-w-0 bg-[var(--bg)]/10 border border-[var(--border)] rounded-3xl p-6 lg:p-8">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-100">
+            <div>
+              <h4 className="text-lg font-black text-[var(--text)] flex items-center gap-2">
+                {currentSection.name}
+              </h4>
+              <p className="text-xs font-semibold text-[var(--text-3)] mt-0.5">
+                Optimize this section to raise your score from {currentSection.scoreBefore}% to {currentSection.scoreAfter}%.
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => toggleApplied(selectedIdx)}
+                className={`px-4 py-2 rounded-lg border text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                  appliedSections[selectedIdx]
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                    : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                {appliedSections[selectedIdx] ? "Applied" : "Mark Applied"}
+              </button>
+
+              <button
+                onClick={() => handleCopySection(currentSection.optimizedText, selectedIdx)}
+                className="px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md shadow-[var(--primary-glow)] cursor-pointer"
+              >
+                {copiedSectionIdx === selectedIdx ? (
+                  <>
+                    <Check className="w-4 h-4" /> Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" /> Copy Section
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Issues checklist */}
+          {currentSection.issues && currentSection.issues.length > 0 && (
+            <div className="mb-6 bg-red-50/40 border border-red-100/50 rounded-2xl p-4">
+              <h5 className="text-xs font-black uppercase tracking-widest text-red-700 mb-3 flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4" /> Issues & Keyword Gaps Detected
+              </h5>
+              <ul className="space-y-2 text-left">
+                {currentSection.issues.map((issue, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-xs text-red-800 font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 shrink-0" />
+                    {issue}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Section side-by-side comparison */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 text-left">
+            {/* Before */}
+            <div className="flex flex-col min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-wider text-red-500 mb-2 pl-1">Before (Original Content)</span>
+              <div className="flex-1 bg-red-50/20 border border-red-100 rounded-2xl p-5 min-h-[150px] relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rounded-full blur-2xl" />
+                <p className="text-sm text-gray-700 font-medium leading-relaxed whitespace-pre-wrap italic break-words">
+                  {currentSection.originalText || "No original content detected in this section."}
+                </p>
+              </div>
+            </div>
+
+            {/* After */}
+            <div className="flex flex-col min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 mb-2 pl-1">After (ATS Optimized)</span>
+              <div className="flex-1 bg-emerald-50/20 border border-emerald-200 rounded-2xl p-5 min-h-[150px] relative overflow-hidden shadow-inner">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl" />
+                <p className="text-sm text-gray-800 font-bold leading-relaxed whitespace-pre-wrap break-words">
+                  {currentSection.optimizedText}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Optimization Strategy / Explanation */}
+          {currentSection.explanation && (
+            <div className="bg-blue-50/30 border border-blue-100/50 rounded-2xl p-5 flex items-start gap-3 mt-auto text-left">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-[var(--primary)] flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4" />
+              </div>
+              <div>
+                <h5 className="text-xs font-black uppercase tracking-widest text-[var(--primary)] mb-1">Optimization Strategy</h5>
+                <p className="text-xs text-gray-700 font-medium leading-relaxed">
+                  {currentSection.explanation}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────
 const ResumeFeedback = () => {
@@ -313,6 +589,7 @@ const ResumeFeedback = () => {
       .join("\n\n");
 
     try {
+      // Prefer Python NLP pipeline when available
       const pyForm = new FormData();
       pyForm.append("resume", file);
       if (jdCombined) pyForm.append("jd_text", jdCombined);
@@ -348,6 +625,7 @@ const ResumeFeedback = () => {
         );
       }
 
+      // Node: extract text then analyze (with role + JD)
       const uploadForm = new FormData();
       uploadForm.append("file", file);
 
@@ -403,6 +681,8 @@ const ResumeFeedback = () => {
     }
   };
 
+
+
   const handleFixResumeWithAI = async () => {
     if (!extractedText) {
       alert("Please analyze a resume first");
@@ -413,12 +693,12 @@ const ResumeFeedback = () => {
     setFixNotice(null);
     setError(null);
     try {
-      const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+      const nodeApiUrl =
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
       const token = localStorage.getItem("token");
 
       const response = await axios.post(
-        `${apiUrl}/api/resume/fix-resume`,
+        `${nodeApiUrl}/api/resume/fix-resume`,
         {
           resumeText: extractedText,
           role: role.trim() || "not specified",
@@ -433,15 +713,6 @@ const ResumeFeedback = () => {
       );
 
       const fixData = response.data.data;
-      if (fixData) {
-        fixData.atsScoreBefore = feedback?.score;
-        if (fixData.atsScoreAfter < feedback?.score) {
-          fixData.atsScoreAfter = Math.min(
-            95,
-            feedback.score + Math.floor(Math.random() * 10) + 5,
-          );
-        }
-      }
       setFixedResumeData(fixData);
       console.log("FIXED DATA:", fixData);
       if (historyIdRef.current) {
@@ -478,33 +749,11 @@ const ResumeFeedback = () => {
       setError(
         err.response?.data?.error ||
           err.response?.data?.message ||
-          err.message ||
           "Failed to fix resume. Ensure the server is running on port 5001.",
       );
     } finally {
       setFixResumeLoading(false);
     }
-  };
-
-  const handleAnalyzeAnother = () => {
-    setFile(null);
-    setRole("");
-    setJobDesc("");
-    setFeedback(null);
-    setFixedResumeData(null);
-    setExtractedText("");
-    setError(null);
-    setFixNotice(null);
-    setStep("idle");
-
-    if (fileRef.current) {
-      fileRef.current.value = "";
-    }
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
   };
 
   const canAccessFull = true;
@@ -571,7 +820,7 @@ const ResumeFeedback = () => {
                   }}
                 />
                 <span
-                  className={`text-sm font-bold ${file ? "text-[var(--primary)]" : "text-[var(--text-3)]"}`}
+                  className={`text-sm font-bold truncate mr-2 ${file ? "text-[var(--primary)]" : "text-[var(--text-3)]"}`}
                 >
                   {file ? file.name : "Select PDF or DOCX"}
                 </span>
@@ -662,13 +911,13 @@ const ResumeFeedback = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="space-y-12"
           >
-            <div className="flex flex-col md:flex-row items-center gap-12 p-10 bg-white rounded-[48px] border border-[var(--border)] shadow-2xl">
+            <div className="flex flex-col md:flex-row items-center gap-12 p-10 bg-white rounded-[48px] border border-[var(--border)] shadow-2xl overflow-hidden">
               <ScoreRing score={feedback.score} />
-              <div className="flex-1 text-center md:text-left">
+              <div className="flex-1 text-center md:text-left min-w-0">
                 <div className="inline-block px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 text-[10px] font-black uppercase tracking-widest mb-4">
                   Report Finalized
                 </div>
-                <h2 className="text-3xl font-black tracking-tight text-[var(--text)] mb-3">
+                <h2 className="text-3xl font-black tracking-tight text-[var(--text)] mb-3 break-all">
                   {file?.name}
                 </h2>
                 <p className="text-lg font-medium text-[var(--text-3)] leading-relaxed">
@@ -677,7 +926,7 @@ const ResumeFeedback = () => {
                   corporate filters.
                 </p>
               </div>
-              <div className="flex gap-4 flex-col md:flex-row">
+              <div className="flex gap-4 flex-col md:flex-row shrink-0">
                 <button
                   onClick={handleFixResumeWithAI}
                   disabled={fixResumeLoading}
@@ -694,12 +943,6 @@ const ResumeFeedback = () => {
                       AI Fix Resume
                     </>
                   )}
-                </button>
-                <button
-                  onClick={handleAnalyzeAnother}
-                  className="px-8 py-4 rounded-xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 shadow-xl shadow-[var(--primary-glow)] flex items-center justify-center gap-2"
-                >
-                  Analyze Another Resume
                 </button>
               </div>
             </div>
@@ -752,7 +995,7 @@ const ResumeFeedback = () => {
                         Before
                       </div>
                       <div className="text-4xl font-black text-emerald-900">
-                        {feedback?.score || "N/A"}
+                        {feedback?.score ?? fixedResumeData.atsScoreBefore ?? "N/A"}
                       </div>
                       <div className="text-xs text-emerald-600 font-semibold">
                         ATS Score
@@ -777,12 +1020,7 @@ const ResumeFeedback = () => {
                 {/* Neural Analysis Dashboard */}
                 {fixedResumeData.overview && (
                   <div className="space-y-8 mb-10">
-                    {(() => {
-                      // Sync the nested chart data score with the updated visual 'After' score
-                      fixedResumeData.overview.overall_ats_score =
-                        fixedResumeData.atsScoreAfter;
-                      return <OverviewCards data={fixedResumeData.overview} />;
-                    })()}
+                    <OverviewCards data={fixedResumeData.overview} />
 
                     <RecruiterImpression
                       data={fixedResumeData.recruiterImpression}
@@ -790,45 +1028,41 @@ const ResumeFeedback = () => {
 
                     <div className="grid md:grid-cols-2 gap-6">
                       <StrengthsSection
-                        strengths={
-                          fixedResumeData.strengths?.length
-                            ? fixedResumeData.strengths
-                            : fixedResumeData.deepAnalysis?.strengths || []
-                        }
+                        strengths={fixedResumeData.strengths || []}
                       />
 
-                      <RedFlags
-                        flags={
-                          fixedResumeData.redFlags?.length
-                            ? fixedResumeData.redFlags
-                            : fixedResumeData.deepAnalysis?.redFlags || []
-                        }
-                      />
+                      <RedFlags flags={fixedResumeData.redFlags || []} />
                     </div>
 
                     <MissingKeywords
                       keywords={fixedResumeData.missingKeywords || []}
                     />
 
-                    <CertificationGapAnalyzer
-                      analysis={
-                        fixedResumeData.certification_analysis ||
-                        feedback?.certification_analysis
-                      }
-                    />
-
+                    {/* 1. Competitiveness */}
                     <CompetitivenessComparison
                       deepAnalysis={fixedResumeData.deepAnalysis}
                     />
 
-                    <Top10Changes
-                      changes={fixedResumeData.deepAnalysis?.top10Changes}
-                    />
+                    {/* Interactive Section Optimizer */}
+                    {fixedResumeData.sections ? (
+                      <InteractiveSectionOptimizer
+                        sections={fixedResumeData.sections}
+                      />
+                    ) : (
+                      <>
+                        {/* 2. Top 10 Changes */}
+                        <Top10Changes
+                          changes={fixedResumeData.deepAnalysis?.top10Changes}
+                        />
 
-                    <SectionRewrites
-                      rewrites={fixedResumeData.deepAnalysis?.rewrites}
-                    />
+                        {/* 3. Section Rewrites */}
+                        <SectionRewrites
+                          rewrites={fixedResumeData.deepAnalysis?.rewrites}
+                        />
+                      </>
+                    )}
 
+                    {/* 4. Final Verdict */}
                     <HiringVerdict
                       verdict={
                         fixedResumeData.deepAnalysis?.finalVerdict ||

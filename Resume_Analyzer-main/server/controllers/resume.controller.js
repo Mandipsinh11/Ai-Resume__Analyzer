@@ -4,6 +4,7 @@ import User from "../models/User.js";
 import { extractResumeData } from "../utils/resumeParser.js";
 import { generateLatexResume } from "../utils/latexTemplate.js";
 import { analyzeResume as analyzeResumeAI, getAtsTips, fixResumeWithAI, analyzeTemplateIssues, comprehensiveResumeAnalysis } from "../utils/gemini.js";
+import { isResumeText } from "../utils/resumeValidator.js";
 
 const mapParsedToLatexData = (parsed) => {
   const skillsArray = Array.isArray(parsed.skills) ? parsed.skills : [];
@@ -85,6 +86,13 @@ export const uploadResume = async (req, res) => {
     } catch (err) {
       console.error("Resume parsing error:", err);
       resumeParsed = {};
+    }
+
+    if (!isResumeText(resumeParsed.rawText)) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (err) {}
+      return res.status(400).json({ message: "The uploaded file does not appear to be a valid resume. Please upload a professional resume." });
     }
 
     // Get ATS tips from Gemini (DISABLED TEMPORARILY)

@@ -228,27 +228,10 @@ def _database_match(text: str) -> dict:
 
 
 def _spacy_ner_extract(text: str) -> dict:
-    """
-    Strategy 2: Use spaCy to find skills not in our database.
-
-    WHAT spaCy GIVES US:
-        - doc.ents  → Named entities (ORG, PRODUCT, LANGUAGE, etc.)
-        - token.pos_ → Part of speech (NOUN, PROPN, VERB, etc.)
-
-    HOW WE USE IT:
-        - PRODUCT entities → likely a tool or framework
-          e.g. spaCy labels "TensorFlow", "Kubernetes" as PRODUCT
-        - ORG entities in a skills context → company-named tools
-          e.g. "AWS", "Google Cloud" often tagged as ORG
-        - PROPN (proper noun) tokens in skills section → candidate skills
-
-    WHY NOT RELY ON NER ALONE?
-        spaCy's en_core_web_sm is trained on news/web text, not resumes.
-        It will tag "Python" as a language (good!) but also sometimes
-        tag "Communication" as an ORG (bad). Database matching anchors
-        us; NER extends us.
-    """
     found = {"technical": [], "tools": [], "soft": [], "domains": []}
+
+    if nlp is None:
+        return found
 
     doc = nlp(text[:10000])  # Limit to 10k chars to keep it fast
 

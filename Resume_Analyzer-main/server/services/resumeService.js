@@ -69,9 +69,37 @@ export function buildBasicAnalysis(resumeText, role = "", jobDescription = "") {
   if (skills.length >= 3) atsScore += 10;
   if (skills.length >= 6) atsScore += 5;
 
+  const STOP_WORDS = new Set([
+    "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren", "as", "at",
+    "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can", "cannot",
+    "could", "did", "do", "does", "doing", "down", "during", "each", "few", "for", "from", "further",
+    "had", "has", "have", "having", "he", "her", "here", "hers", "herself", "him", "himself", "his",
+    "how", "i", "if", "in", "into", "is", "isn", "it", "its", "itself", "me", "more", "most", "must",
+    "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought",
+    "our", "ours", "ourselves", "out", "over", "own", "same", "shan", "she", "should", "shouldn", "so",
+    "some", "such", "than", "that", "the", "their", "theirs", "them", "themselves", "then", "there",
+    "these", "they", "this", "those", "through", "to", "too", "under", "until", "up", "very", "was",
+    "wasn", "we", "were", "weren", "what", "when", "where", "which", "while", "who", "whom", "why",
+    "with", "won", "would", "you", "your", "yours", "yourself", "yourselves",
+    "role", "seeking", "highly", "motivated", "join", "team", "ideal", "candidate", "building", "scalable",
+    "applications", "will", "write", "clean", "maintainable", "efficient", "code", "participate", "reviews",
+    "testing", "debug", "troubleshoot", "issues", "product", "managers", "designers", "developers",
+    "collaborate", "cross", "functional", "teams", "design", "develop", "test", "deploy", "high", "quality",
+    "solutions", "responsibilities", "requirements", "qualifications", "experience", "skills", "ability",
+    "learn", "quickly", "passion", "innovative", "products", "technical", "documentation", "follow", "agile",
+    "scrum", "development", "methodologies", "strong", "knowledge", "understanding", "oriented", "familiarity",
+    "systems", "operating", "computer", "networks", "lifecycle", "debugging", "techniques", "analytical",
+    "problem", "solving", "communication", "teamwork", "bachelor", "degree", "science", "information",
+    "technology", "related", "field", "preferred", "intern", "associate", "entry", "level", "senior",
+    "junior", "lead", "staff", "engineering", "years", "work", "context", "target", "position"
+  ]);
+
   const jdBlob = `${role} ${jobDescription}`.toLowerCase();
   const jdTokens = [
-    ...new Set(jdBlob.split(/\W+/).filter((w) => w.length > 3)),
+    ...new Set(
+      jdBlob.split(/\W+/)
+        .filter((w) => w.length > 3 && !STOP_WORDS.has(w))
+    ),
   ];
   const matchedJd = jdTokens.filter((w) => lower.includes(w));
   if (jdTokens.length > 0) {
@@ -181,7 +209,7 @@ export const analyzeAndImproveResume = async (
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         maxOutputTokens: 4096,
@@ -199,17 +227,13 @@ export const analyzeAndImproveResume = async (
     }
 
     const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-
     let cleanedText = jsonMatch ? jsonMatch[1].trim() : text.trim();
-
     const objectMatch = cleanedText.match(/\{[\s\S]*\}$/);
-
     if (objectMatch) {
       cleanedText = objectMatch[0];
     }
 
     let parsed;
-
     try {
       parsed = JSON.parse(cleanedText);
     } catch (err) {

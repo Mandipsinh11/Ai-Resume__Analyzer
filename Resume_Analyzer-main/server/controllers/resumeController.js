@@ -1,6 +1,7 @@
 import pdfParse from "pdf-parse";
 import mammoth from "mammoth";
 import * as resumeService from "../services/resumeService.js";
+import { isResumeText } from "../utils/resumeValidator.js";
 import { generateATSResume as generateATSResumeAI } from "../utils/gemini.js";
 
 export const uploadResume = async (req, res) => {
@@ -17,6 +18,13 @@ export const uploadResume = async (req, res) => {
     } else if (req.file.mimetype.includes("word")) {
       const data = await mammoth.extractRawText({ buffer: req.file.buffer });
       text = data.value ? data.value.replace(/\n\s*\n/g, "\n") : "";
+    }
+
+    if (!isResumeText(text)) {
+      return res.status(400).json({
+        error:
+          "The uploaded file does not appear to be a valid resume. Please upload a professional resume.",
+      });
     }
 
     return res.status(200).json({
@@ -37,12 +45,16 @@ export const uploadResume = async (req, res) => {
 
 export const analyzeResume = async (req, res) => {
   try {
-    const { text } = req.body;
+    const { text, role, jobDescription } = req.body;
     if (!text) {
       return res.status(400).json({ error: "No resume text provided" });
     }
 
-    const improvedJson = await resumeService.analyzeAndImproveResume(text);
+    const improvedJson = await resumeService.analyzeAndImproveResume(
+      text,
+      role,
+      jobDescription,
+    );
 
     return res.status(200).json({
       success: true,

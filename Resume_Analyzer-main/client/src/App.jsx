@@ -12,6 +12,8 @@ import OAuthCallback from "./features/auth/pages/OAuthCallback";
 import CustomCursor from "./components/CustomCursor";
 import ScrollToTop from "./components/ScrollToTop";
 import NotFound from "./pages/NotFound";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 import { ToastProvider } from "./components/ui/Toast";
 import OptimizationHistory from "./features/dashboard/pages/OptimizationHistory";
 import ATSResumeBuilder from "./features/dashboard/pages/ATSResumeBuilder";
@@ -33,6 +35,7 @@ function App() {
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/resume-analyzer" element={<ResumeAnalyzer />} />
+          <Route path="/analyze/:templateId" element={<ResumeAnalyzer />} />
           <Route path="/create-ats-resume" element={<ATSResumeBuilder />} />
           <Route
             path="/optimization-history"
@@ -46,6 +49,9 @@ function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="/oauth-callback" element={<OAuthCallback />} />
           <Route path="/resume-editor" element={<ResumeEditor />} />
+          <Route path="/editor/:templateId" element={<ResumeEditor />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
           {/* Catch-all 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
@@ -55,3 +61,4 @@ function App() {
 }
 
 export default App;
+

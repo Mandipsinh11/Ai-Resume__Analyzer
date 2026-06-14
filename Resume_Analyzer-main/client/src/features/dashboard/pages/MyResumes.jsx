@@ -86,7 +86,7 @@ const MyResumes = () => {
                   <h3 className="text-2xl font-black mb-4">No documents yet</h3>
 
                   <p className="text-lg text-[var(--text-3)]">
-                    Create your first ATS Resume.
+                    Create your first Resume with ATS.
                   </p>
                 </div>
               ) : (
