@@ -7,6 +7,19 @@ import { DashboardNavbar } from "./Dashboard";
 const MyResumes = () => {
   const navigate = useNavigate();
   const savedResumes = JSON.parse(localStorage.getItem("savedResumes")) || [];
+  const groupedResumes = Object.values(
+    savedResumes.reduce((acc, resume) => {
+      const key = resume.resumeId;
+
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+
+      acc[key].push(resume);
+
+      return acc;
+    }, {}),
+  );
   const displayName = useMemo(() => {
     const r = localStorage.getItem("user");
     if (!r) return "User";
@@ -90,57 +103,110 @@ const MyResumes = () => {
                   </p>
                 </div>
               ) : (
-                savedResumes.map((resume) => (
-                  <div
-                    key={resume.id}
-                    className="p-6 rounded-3xl border border-[var(--border)] bg-[var(--bg)] shadow-lg"
-                  >
-                    <h3 className="text-xl font-black mb-2">
-                      {resume.fullName}
-                    </h3>
+                groupedResumes.map((versions) => {
+                  const resume = versions[versions.length - 1];
+                  return (
+                    <div
+                      key={resume.resumeId || resume.id}
+                      className="p-6 rounded-3xl border border-[var(--border)] bg-[var(--bg)] shadow-lg hover:shadow-xl transition-all"
+                    >
+                      <h3 className="text-xl font-black mb-2">
+                        {resume.fullName}
+                      </h3>
 
-                    <p className="text-[var(--text-3)] mb-4">
-                      {resume.targetRole}
-                    </p>
+                      <p className="text-[var(--text-3)]">
+                        {resume.targetRole}
+                      </p>
+                      <p className="text-xs text-purple-500 font-semibold mt-1">
+                        {versions.length} Version
+                        {versions.length > 1 ? "s" : ""}
+                      </p>
 
-                    <p className="text-xs text-[var(--text-3)] mb-6">
-                      {new Date(resume.createdAt).toLocaleString()}
-                    </p>
+                      {/* Template Badge */}
+                      <div className="mt-3 mb-3">
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                          {resume.template || "Modern ATS"}
+                        </span>
+                      </div>
 
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() =>
-                          navigate("/resume-editor", {
-                            state: {
-                              generatedResume: resume,
-                            },
-                          })
-                        }
-                        className="px-4 py-2 rounded-xl bg-blue-500 text-white"
-                      >
-                        Open
-                      </button>
+                      {/* ATS Score */}
+                      <div className="mb-4">
+                        <div className="flex justify-between text-xs font-semibold mb-1">
+                          <span>ATS Score</span>
+                          <span>{resume.atsScore || 85}/100</span>
+                        </div>
 
-                      <button
-                        onClick={() => {
-                          const updated = savedResumes.filter(
-                            (r) => r.id !== resume.id,
-                          );
+                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-green-500"
+                            style={{
+                              width: `${resume.atsScore || 85}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
 
-                          localStorage.setItem(
-                            "savedResumes",
-                            JSON.stringify(updated),
-                          );
+                      <p className="text-xs text-[var(--text-3)] mb-6">
+                        {new Date(resume.createdAt).toLocaleString()}
+                      </p>
 
-                          window.location.reload();
-                        }}
-                        className="px-4 py-2 rounded-xl bg-red-500 text-white"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() =>
+                            navigate("/resume-editor", {
+                              state: {
+                                generatedResume: resume,
+                              },
+                            })
+                          }
+                          className="px-4 py-2 rounded-xl bg-blue-500 text-white text-sm"
+                        >
+                          Open
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const copy = {
+                              ...resume,
+                              id: Date.now(),
+                              createdAt: new Date().toISOString(),
+                            };
+
+                            const updated = [...savedResumes, copy];
+
+                            localStorage.setItem(
+                              "savedResumes",
+                              JSON.stringify(updated),
+                            );
+
+                            window.location.reload();
+                          }}
+                          className="px-4 py-2 rounded-xl bg-purple-500 text-white text-sm"
+                        >
+                          Duplicate
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const updated = savedResumes.filter(
+                              (r) => r.id !== resume.id,
+                            );
+
+                            localStorage.setItem(
+                              "savedResumes",
+                              JSON.stringify(updated),
+                            );
+
+                            window.location.reload();
+                          }}
+                          className="px-4 py-2 rounded-xl bg-red-500 text-white text-sm"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
             <div className="mt-16 pt-10 border-t border-[var(--border)]">

@@ -1,14 +1,17 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
+import toast from "react-hot-toast";
 
 const ResumeEditor = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const jobDescription = location.state?.jobDescription || "";
   const resumeRef = useRef();
 
   const selectedTemplate = location.state?.template || "modern";
 
+  const isDarkTemplate = selectedTemplate === "tech";
   const templateStyles = {
     modern: "bg-white text-slate-800 border border-slate-200",
     professional: "bg-white text-gray-900 border-2 border-gray-300",
@@ -39,6 +42,15 @@ const ResumeEditor = () => {
   const [resumeData, setResumeData] = useState(initialResumeData);
   const [isSaving, setIsSaving] = useState(false);
   const [atsScore, setAtsScore] = useState(0);
+  const [atsIssues, setAtsIssues] = useState([]);
+  const [jobMatchScore, setJobMatchScore] = useState(0);
+  const [missingKeywords, setMissingKeywords] = useState([]);
+  const scoreColor =
+    atsScore >= 80
+      ? "text-green-600"
+      : atsScore >= 60
+        ? "text-yellow-600"
+        : "text-red-600";
 
   const handleChange = (e) => {
     setResumeData({
@@ -49,21 +61,91 @@ const ResumeEditor = () => {
 
   const calculateATSScore = () => {
     let score = 0;
+    const issues = [];
 
-    if (resumeData.fullName) score += 10;
-    if (resumeData.targetRole) score += 10;
-    if (resumeData.professionalSummary) score += 20;
-    if (resumeData.skills) score += 20;
-    if (resumeData.certifications) score += 10;
-    if (resumeData.experience) score += 15;
-    if (resumeData.projects) score += 10;
-    if (resumeData.education) score += 5;
+    if (resumeData.fullName) {
+      score += 10;
+    } else {
+      issues.push("Missing Full Name");
+    }
+
+    if (resumeData.targetRole) {
+      score += 10;
+    } else {
+      issues.push("Missing Target Role");
+    }
+
+    if (resumeData.professionalSummary) {
+      score += 20;
+    } else {
+      issues.push("Add Professional Summary");
+    }
+
+    if (resumeData.skills) {
+      score += 20;
+    } else {
+      issues.push("Add Core Skills");
+    }
+
+    if (resumeData.certifications) {
+      score += 10;
+    } else {
+      issues.push("Add Certifications");
+    }
+
+    if (resumeData.experience) {
+      score += 15;
+    } else {
+      issues.push("Add Experience");
+    }
+
+    if (resumeData.projects) {
+      score += 10;
+    } else {
+      issues.push("Add Projects");
+    }
+
+    if (resumeData.education) {
+      score += 5;
+    } else {
+      issues.push("Add Education");
+    }
 
     setAtsScore(Math.min(score, 100));
+    setAtsIssues(issues);
   };
 
   useEffect(() => {
     calculateATSScore();
+  }, [resumeData]);
+
+  const calculateJobMatch = () => {
+    if (!jobDescription) return;
+
+    const resumeText = `
+    ${resumeData.skills}
+    ${resumeData.experience}
+    ${resumeData.projects}
+    ${resumeData.professionalSummary}
+  `.toLowerCase();
+
+    const keywords = jobDescription.toLowerCase().match(/\b[a-zA-Z]{4,}\b/g);
+
+    if (!keywords) return;
+
+    const uniqueKeywords = [...new Set(keywords)];
+
+    const matched = uniqueKeywords.filter((word) => resumeText.includes(word));
+
+    const missing = uniqueKeywords.filter((word) => !resumeText.includes(word));
+
+    const score = Math.round((matched.length / uniqueKeywords.length) * 100);
+
+    setJobMatchScore(score);
+    setMissingKeywords(missing.slice(0, 10));
+  };
+  useEffect(() => {
+    calculateJobMatch();
   }, [resumeData]);
 
   const handleSave = () => {
@@ -72,8 +154,11 @@ const ResumeEditor = () => {
     const existingResumes =
       JSON.parse(localStorage.getItem("savedResumes")) || [];
 
+    const resumeId = location.state?.generatedResume?.resumeId || Date.now();
+
     const newResume = {
-      id: Date.now(),
+      resumeId,
+      version: Date.now(),
       ...resumeData,
       createdAt: new Date().toISOString(),
     };
@@ -85,7 +170,7 @@ const ResumeEditor = () => {
     // Simulate API persistence
     setTimeout(() => {
       setIsSaving(false);
-      alert("Changes saved successfully!");
+      toast.success("Changes saved successfully!");
     }, 1000);
   };
 
@@ -326,14 +411,94 @@ const ResumeEditor = () => {
           </div>
 
           {/* Right Column: Live Dynamic Preview */}
-          <div
-            ref={resumeRef}
-            className={`sticky top-8 p-8 rounded-3xl shadow-xl min-h-[600px] flex flex-col justify-between ${templateStyles[selectedTemplate]}`}
-          >
-            <div>
+          {/* Right Column: Live Dynamic Preview */}
+          <div>
+            {/* ATS Score Card */}
+            <div className="mb-4 p-4 rounded-2xl bg-blue-50 border border-blue-200">
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold text-blue-900">ATS Score Analyzer</h3>
+
+                <span className={`text-2xl font-black ${scoreColor}`}>
+                  {atsScore}/100
+                </span>
+              </div>
+
+              <div className="mt-2 w-full h-3 bg-blue-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-500 transition-all duration-500"
+                  style={{ width: `${atsScore}%` }}
+                />
+              </div>
+
+              {atsIssues.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-xs font-bold uppercase mb-2 text-red-600">
+                    Improvement Suggestions
+                  </h4>
+
+                  <ul className="space-y-1">
+                    {atsIssues.map((issue, index) => (
+                      <li key={index} className="text-xs text-red-500">
+                        • {issue}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            {/* Job Match Score Card */}
+            <div className="mb-4 p-4 rounded-2xl bg-green-50 border border-green-200">
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold text-green-900">Job Match Score</h3>
+
+                <span className="text-2xl font-black text-green-600">
+                  {jobMatchScore}%
+                </span>
+              </div>
+
+              <div className="mt-3 w-full h-3 bg-green-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-green-500 transition-all duration-500"
+                  style={{ width: `${jobMatchScore}%` }}
+                />
+              </div>
+
+              {missingKeywords.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-xs font-bold uppercase mb-2 text-red-600">
+                    Missing Keywords
+                  </h4>
+
+                  <div className="flex flex-wrap gap-2">
+                    {missingKeywords.map((keyword, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-1 text-xs rounded-lg bg-red-100 text-red-600"
+                      >
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Resume Preview */}
+            <div
+              ref={resumeRef}
+              className={`sticky top-8 p-8 rounded-3xl shadow-xl min-h-[600px] flex flex-col justify-between ${templateStyles[selectedTemplate]}`}
+            >
               {/* Document Header */}
-              <div className="text-center border-b-2 border-slate-800 pb-4 mb-6">
-                <h2 className="text-3xl font-bold tracking-wide uppercase text-slate-900">
+              <div
+                className={`text-center border-b-2 pb-4 mb-6 ${
+                  isDarkTemplate ? "border-slate-600" : "border-slate-800"
+                }`}
+              >
+                <h2
+                  className={`text-3xl font-bold tracking-wide uppercase ${
+                    isDarkTemplate ? "text-white" : "text-slate-900"
+                  }`}
+                >
                   {resumeData.fullName || "Your Name"}
                 </h2>
                 <p className="text-sm font-medium tracking-widest uppercase text-blue-600 mt-1 font-sans">
@@ -342,10 +507,20 @@ const ResumeEditor = () => {
               </div>
 
               {/* Document Body Segments */}
-              <div className="space-y-5 text-sm leading-relaxed text-slate-700">
+              <div
+                className={`space-y-5 text-sm leading-relaxed ${
+                  isDarkTemplate ? "text-slate-300" : "text-slate-700"
+                }`}
+              >
                 {resumeData.professionalSummary && (
                   <div>
-                    <h3 className="font-sans text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-0.5 mb-1.5">
+                    <h3
+                      className={`font-sans text-xs font-bold uppercase tracking-wider border-b pb-0.5 mb-1.5 ${
+                        isDarkTemplate
+                          ? "text-white border-slate-700"
+                          : "text-slate-900 border-slate-200"
+                      }`}
+                    >
                       Professional Summary
                     </h3>
 
@@ -357,7 +532,13 @@ const ResumeEditor = () => {
 
                 {resumeData.skills && (
                   <div>
-                    <h3 className="font-sans text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-0.5 mb-1.5">
+                    <h3
+                      className={`font-sans text-xs font-bold uppercase tracking-wider border-b pb-0.5 mb-1.5 ${
+                        isDarkTemplate
+                          ? "text-white border-slate-700"
+                          : "text-slate-900 border-slate-200"
+                      }`}
+                    >
                       Core Skills
                     </h3>
                     <p className="whitespace-pre-wrap text-xs">
@@ -368,7 +549,13 @@ const ResumeEditor = () => {
 
                 {resumeData.certifications && (
                   <div>
-                    <h3 className="font-sans text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-0.5 mb-1.5">
+                    <h3
+                      className={`font-sans text-xs font-bold uppercase tracking-wider border-b pb-0.5 mb-1.5 ${
+                        isDarkTemplate
+                          ? "text-white border-slate-700"
+                          : "text-slate-900 border-slate-200"
+                      }`}
+                    >
                       Certifications
                     </h3>
 
@@ -380,7 +567,13 @@ const ResumeEditor = () => {
 
                 {resumeData.experience && (
                   <div>
-                    <h3 className="font-sans text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-0.5 mb-1.5">
+                    <h3
+                      className={`font-sans text-xs font-bold uppercase tracking-wider border-b pb-0.5 mb-1.5 ${
+                        isDarkTemplate
+                          ? "text-white border-slate-700"
+                          : "text-slate-900 border-slate-200"
+                      }`}
+                    >
                       Work Experience
                     </h3>
                     <p className="whitespace-pre-wrap text-xs">
@@ -391,7 +584,13 @@ const ResumeEditor = () => {
 
                 {resumeData.projects && (
                   <div>
-                    <h3 className="font-sans text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-0.5 mb-1.5">
+                    <h3
+                      className={`font-sans text-xs font-bold uppercase tracking-wider border-b pb-0.5 mb-1.5 ${
+                        isDarkTemplate
+                          ? "text-white border-slate-700"
+                          : "text-slate-900 border-slate-200"
+                      }`}
+                    >
                       Key Technical Projects
                     </h3>
                     <p className="whitespace-pre-wrap text-xs">
@@ -402,7 +601,13 @@ const ResumeEditor = () => {
 
                 {resumeData.education && (
                   <div>
-                    <h3 className="font-sans text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-0.5 mb-1.5">
+                    <h3
+                      className={`font-sans text-xs font-bold uppercase tracking-wider border-b pb-0.5 mb-1.5 ${
+                        isDarkTemplate
+                          ? "text-white border-slate-700"
+                          : "text-slate-900 border-slate-200"
+                      }`}
+                    >
                       Education
                     </h3>
                     <p className="whitespace-pre-wrap text-xs">

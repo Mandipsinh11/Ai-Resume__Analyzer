@@ -47,13 +47,13 @@ export const DashboardNavbar = ({ displayName, onLogout }) => {
               <polyline points="14 2 14 8 20 8" />
             </svg>
           </div>
-          <span className="text-2xl font-black tracking-tighter text-[var(--text)]">
+          <span className="text-3xl font-black tracking-tight text-[var(--text)]">
             ATSify<span className="text-[var(--primary)]">.ai</span>
           </span>
         </Link>
 
         {/* Desktop Links */}
-        <div className="hidden md:flex items-center gap-8">
+        <div className="hidden md:flex items-center gap-6">
           {[
             { name: "Dashboard", href: "/dashboard" },
             { name: "My Resumes", href: "/my-resumes" },
@@ -62,7 +62,7 @@ export const DashboardNavbar = ({ displayName, onLogout }) => {
             <Link
               key={item.name}
               to={item.href}
-              className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-3)] hover:text-[var(--primary)] transition-colors"
+              className="text-sm font-semibold text-[var(--text-2)] hover:text-[var(--primary)] transition-colors"
             >
               {item.name}
             </Link>
@@ -70,7 +70,7 @@ export const DashboardNavbar = ({ displayName, onLogout }) => {
           <button
             type="button"
             onClick={onLogout}
-            className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500 hover:text-rose-600 transition-colors cursor-pointer"
+            className="text-sm font-semibold text-rose-500 hover:text-rose-600 transition-colors cursor-pointer"
           >
             Log Out
           </button>
@@ -540,4 +540,3 @@ const DashboardPage = () => {
 };
 
 export default DashboardPage;
-

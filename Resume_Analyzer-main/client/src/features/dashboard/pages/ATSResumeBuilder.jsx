@@ -57,6 +57,7 @@ const ATSResumeBuilder = () => {
         state: {
           generatedResume,
           template: selectedTemplate,
+          jobDescription: formData.jobDescription,
         },
       });
     } catch (error) {
@@ -167,15 +168,14 @@ const ATSResumeBuilder = () => {
               </h2>
 
               <div>
-                <label className={labelClasses}>
-                  Experience Level / Summary
-                </label>
-                <input
-                  type="text"
-                  name="experience"
-                  placeholder="e.g., Entry-level, 2 years academic projects..."
-                  value={formData.experience}
+                <label className={labelClasses}>Professional Summary</label>
+
+                <textarea
+                  name="professionalSummary"
+                  placeholder="Brief 3-4 line summary highlighting your skills, experience, and career goals..."
+                  value={formData.professionalSummary}
                   onChange={handleChange}
+                  rows={4}
                   className={textareaClasses}
                 />
               </div>
@@ -203,6 +203,32 @@ const ATSResumeBuilder = () => {
                     className={textareaClasses}
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className={labelClasses}>Certifications</label>
+
+                <textarea
+                  name="certifications"
+                  placeholder="e.g., AWS Cloud Practitioner, Google Data Analytics, IBM AI Engineering..."
+                  value={formData.certifications}
+                  onChange={handleChange}
+                  rows={4}
+                  className={textareaClasses}
+                />
+              </div>
+
+              <div>
+                <label className={labelClasses}>Professional Experience</label>
+
+                <textarea
+                  name="experience"
+                  placeholder="e.g., AI/ML Intern at XYZ Company, Developed ML models, Improved accuracy by 15%..."
+                  value={formData.experience}
+                  onChange={handleChange}
+                  rows={4}
+                  className={textareaClasses}
+                />
               </div>
 
               <div>

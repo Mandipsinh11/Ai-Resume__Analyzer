@@ -58,6 +58,11 @@ export const createOrder = async (req, res) => {
     };
 
     const razorpay = getRazorpayClient();
+    console.log("KEY_ID:", process.env.RAZORPAY_KEY_ID);
+    console.log(
+      "KEY_SECRET:ODwnJ5062QaMjp1WgxgazWRk",
+      process.env.RAZORPAY_KEY_SECRET?.substring(0, 5) + "...",
+    );
     const order = await razorpay.orders.create(options);
 
     res.json({
@@ -71,8 +76,7 @@ export const createOrder = async (req, res) => {
   } catch (error) {
     console.error("Razorpay order creation error:", error);
     res.status(500).json({
-      message:
-        error.message || "Failed to create payment order",
+      message: error.message || "Failed to create payment order",
     });
   }
 };
@@ -89,7 +93,9 @@ export const verifyPayment = async (req, res) => {
       req.body;
 
     if (!PLANS[plan]) {
-      return res.status(400).json({ success: false, message: "Invalid plan selected" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid plan selected" });
     }
 
     if (!process.env.RAZORPAY_KEY_SECRET) {
