@@ -18,6 +18,8 @@ const ATSResumeBuilder = () => {
     jobDescription: "",
   });
 
+  const [selectedTemplate, setSelectedTemplate] = useState("modern");
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -54,6 +56,7 @@ const ATSResumeBuilder = () => {
       navigate("/resume-editor", {
         state: {
           generatedResume,
+          template: selectedTemplate,
         },
       });
     } catch (error) {
@@ -212,6 +215,23 @@ const ATSResumeBuilder = () => {
                   rows={4}
                   className={textareaClasses}
                 />
+              </div>
+
+              {/* Resume Template */}
+              <div>
+                <label className={labelClasses}>Resume Template</label>
+
+                <select
+                  value={selectedTemplate}
+                  onChange={(e) => setSelectedTemplate(e.target.value)}
+                  className={textareaClasses}
+                >
+                  <option value="modern">Modern ATS</option>
+                  <option value="professional">Professional</option>
+                  <option value="executive">Executive</option>
+                  <option value="minimal">Minimal</option>
+                  <option value="tech">Tech Resume</option>
+                </select>
               </div>
 
               <div className="pt-4 flex justify-between">

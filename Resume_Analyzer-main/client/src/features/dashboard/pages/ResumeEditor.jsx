@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 
@@ -6,6 +6,16 @@ const ResumeEditor = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const resumeRef = useRef();
+
+  const selectedTemplate = location.state?.template || "modern";
+
+  const templateStyles = {
+    modern: "bg-white text-slate-800 border border-slate-200",
+    professional: "bg-white text-gray-900 border-2 border-gray-300",
+    executive: "bg-slate-50 text-slate-900 border-l-8 border-slate-800",
+    minimal: "bg-white text-black",
+    tech: "bg-slate-900 text-white border border-cyan-500",
+  };
 
   // Fallback default state if page is refreshed directly
   const initialResumeData = location.state?.generatedResume || {
@@ -28,6 +38,7 @@ const ResumeEditor = () => {
 
   const [resumeData, setResumeData] = useState(initialResumeData);
   const [isSaving, setIsSaving] = useState(false);
+  const [atsScore, setAtsScore] = useState(0);
 
   const handleChange = (e) => {
     setResumeData({
@@ -35,6 +46,25 @@ const ResumeEditor = () => {
       [e.target.name]: e.target.value,
     });
   };
+
+  const calculateATSScore = () => {
+    let score = 0;
+
+    if (resumeData.fullName) score += 10;
+    if (resumeData.targetRole) score += 10;
+    if (resumeData.professionalSummary) score += 20;
+    if (resumeData.skills) score += 20;
+    if (resumeData.certifications) score += 10;
+    if (resumeData.experience) score += 15;
+    if (resumeData.projects) score += 10;
+    if (resumeData.education) score += 5;
+
+    setAtsScore(Math.min(score, 100));
+  };
+
+  useEffect(() => {
+    calculateATSScore();
+  }, [resumeData]);
 
   const handleSave = () => {
     setIsSaving(true);
@@ -298,7 +328,7 @@ const ResumeEditor = () => {
           {/* Right Column: Live Dynamic Preview */}
           <div
             ref={resumeRef}
-            className="sticky top-8 p-8 rounded-3xl bg-white text-slate-800 border border-slate-200 shadow-xl min-h-[600px] flex flex-col justify-between"
+            className={`sticky top-8 p-8 rounded-3xl shadow-xl min-h-[600px] flex flex-col justify-between ${templateStyles[selectedTemplate]}`}
           >
             <div>
               {/* Document Header */}
