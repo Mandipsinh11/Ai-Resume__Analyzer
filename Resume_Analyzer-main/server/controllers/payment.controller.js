@@ -60,7 +60,7 @@ export const createOrder = async (req, res) => {
     const razorpay = getRazorpayClient();
     console.log("KEY_ID:", process.env.RAZORPAY_KEY_ID);
     console.log(
-      "KEY_SECRET:ODwnJ5062QaMjp1WgxgazWRk",
+      "KEY_SECRET:",
       process.env.RAZORPAY_KEY_SECRET?.substring(0, 5) + "...",
     );
     const order = await razorpay.orders.create(options);
