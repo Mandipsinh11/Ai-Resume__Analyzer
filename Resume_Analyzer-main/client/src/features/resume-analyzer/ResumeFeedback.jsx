@@ -33,7 +33,7 @@ import {
 // ─────────────────────────────────────────────
 // Feedback Block
 // ─────────────────────────────────────────────
-const FeedbackBlock = ({ type, title, items, isLocked }) => {
+const FeedbackBlock = ({ type, title, items, isLocked, onUpgradeClick }) => {
   const configs = {
     best: {
       color: "var(--primary)",
@@ -90,9 +90,12 @@ const FeedbackBlock = ({ type, title, items, isLocked }) => {
 
       {isLocked && (
         <div className="absolute inset-x-0 bottom-0 top-[40%] bg-gradient-to-t from-[var(--bg-2)] to-transparent flex items-end justify-center pb-8 px-6">
-          <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--primary)] bg-white px-4 py-2 rounded-full shadow-lg border border-[var(--border)]">
+          <button
+            onClick={onUpgradeClick}
+            className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--primary)] bg-white px-4 py-2 rounded-full shadow-lg border border-[var(--border)] cursor-pointer hover:scale-105 transition-transform"
+          >
             <Lock className="w-3 h-3" /> Upgrade to View All
-          </div>
+          </button>
         </div>
       )}
     </div>
@@ -497,11 +500,22 @@ const InteractiveSectionOptimizer = ({ sections }) => {
             {/* After */}
             <div className="flex flex-col min-w-0">
               <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 mb-2 pl-1">After (ATS Optimized)</span>
-              <div className="flex-1 bg-emerald-50/20 border border-emerald-200 rounded-2xl p-5 min-h-[150px] relative overflow-hidden shadow-inner">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl" />
-                <p className="text-sm text-gray-800 font-bold leading-relaxed whitespace-pre-wrap break-words">
-                  {currentSection.optimizedText}
-                </p>
+              <div className="flex-1 bg-emerald-50/20 border border-emerald-200 rounded-2xl p-5 min-h-[150px] relative overflow-hidden shadow-inner flex flex-col justify-between">
+                <div>
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl" />
+                  <p className="text-sm text-gray-800 font-bold leading-relaxed whitespace-pre-wrap break-words">
+                    {currentSection.optimizedText}
+                  </p>
+                </div>
+                {/* Educational Disclaimer */}
+                {currentSection.originalText.includes("[This section is missing") && !currentSection.optimizedText.includes("[No optimized content") && (
+                  <div className="mt-4 p-3.5 bg-amber-50/80 border border-amber-200/60 rounded-xl flex items-start gap-2 text-left">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-amber-800 font-bold leading-normal">
+                      <strong>AI Blueprint Notice:</strong> This is a recommended template showing the type of projects or work history you should showcase for this role. Please customize it with your actual projects, or use it as inspiration for what to build next!
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -600,9 +614,9 @@ const ResumeFeedback = () => {
           timeout: 120000,
         });
 
-        if (pyRes.data?.success !== false && !pyRes.data?.error) {
+        if (pyRes.data?.success !== false && !pyRes.data?.error && pyRes.data?.ats_score) {
           const sections = pyRes.data.sections || {};
-          const extractedResume = Object.values(sections).join("\n") || "";
+          const extractedResume = pyRes.data.raw_text || Object.values(sections).join("\n") || "";
 
           setExtractedText(extractedResume);
           localStorage.setItem("resumeText", extractedResume);
@@ -689,6 +703,23 @@ const ResumeFeedback = () => {
       return;
     }
 
+    if (plan === "free") {
+      setPaywallPlan("all");
+      setShowPaywall(true);
+      alert("Please upgrade to a Basic or Pro plan to use the AI Resume Fix feature!");
+      return;
+    }
+
+    if (plan === "basic") {
+      const saved = JSON.parse(localStorage.getItem("savedResumes") || "[]");
+      if (saved.length >= 4) {
+        setPaywallPlan("pro");
+        setShowPaywall(true);
+        alert("You have reached the limit of 4 optimized resumes in the Basic plan. Please upgrade to Pro for unlimited optimizations!");
+        return;
+      }
+    }
+
     setFixResumeLoading(true);
     setFixNotice(null);
     setError(null);
@@ -756,7 +787,10 @@ const ResumeFeedback = () => {
     }
   };
 
-  const canAccessFull = true;
+  const userStr = localStorage.getItem("user");
+  const userObj = userStr ? JSON.parse(userStr) : {};
+  const plan = userObj.subscription?.plan || "free";
+  const canAccessFull = plan === "basic" || plan === "pro";
 
   return (
     <div className="w-full max-w-6xl mx-auto">
@@ -832,14 +866,28 @@ const ResumeFeedback = () => {
           </div>
 
           <div className="space-y-3">
-            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-3)] ml-1 flex items-center gap-2">
-              <FileText className="w-3 h-3 text-[var(--primary)]" /> Job Context
-              (Recommended)
-            </label>
+            <div className="flex items-center justify-between ml-1">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-3)] flex items-center gap-2">
+                <FileText className="w-3 h-3 text-[var(--primary)]" /> Job Context
+                (Recommended)
+              </label>
+              {plan !== "pro" && (
+                <span className="text-[9px] font-black uppercase tracking-wider text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md">
+                  🔒 PRO Feature
+                </span>
+              )}
+            </div>
             <textarea
-              className="w-full bg-[var(--bg)] border border-[var(--border)] px-6 py-4 rounded-2xl text-[var(--text)] font-semibold focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-glow)] transition-all outline-none min-h-[140px] resize-none"
-              placeholder="Paste the target JD here to calibrate matching accuracy..."
-              value={jobDesc}
+              className={`w-full bg-[var(--bg)] border border-[var(--border)] px-6 py-4 rounded-2xl text-[var(--text)] font-semibold focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-glow)] transition-all outline-none min-h-[140px] resize-none ${
+                plan !== "pro" ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+              placeholder={
+                plan === "pro"
+                  ? "Paste the target JD here to calibrate matching accuracy..."
+                  : "Upgrade to PRO to unlock Job Description keyword matching..."
+              }
+              value={plan === "pro" ? jobDesc : ""}
+              disabled={plan !== "pro"}
               onChange={(e) => setJobDesc(e.target.value)}
             />
           </div>
@@ -953,18 +1001,30 @@ const ResumeFeedback = () => {
                 title={feedback.best.title}
                 items={feedback.best.items}
                 isLocked={!canAccessFull}
+                onUpgradeClick={() => {
+                  setPaywallPlan("all");
+                  setShowPaywall(true);
+                }}
               />
               <FeedbackBlock
                 type="good"
                 title={feedback.good.title}
                 items={feedback.good.items}
                 isLocked={!canAccessFull}
+                onUpgradeClick={() => {
+                  setPaywallPlan("all");
+                  setShowPaywall(true);
+                }}
               />
               <FeedbackBlock
                 type="improve"
                 title={feedback.improve.title}
                 items={feedback.improve.items}
                 isLocked={!canAccessFull}
+                onUpgradeClick={() => {
+                  setPaywallPlan("all");
+                  setShowPaywall(true);
+                }}
               />
             </div>
 

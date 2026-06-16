@@ -1,4 +1,12 @@
 import "dotenv/config";
+import dns from "dns";
+
+// Force Node.js to use Google and Cloudflare DNS to avoid querySrv ECONNREFUSED error
+try {
+  dns.setServers(["8.8.8.8", "1.1.1.1"]);
+} catch (e) {
+  console.warn("Could not set custom DNS servers:", e);
+}
 
 import express from "express";
 import "./config/google.passport.js";
@@ -19,7 +27,7 @@ const app = express();
 // Middleware
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:5173"],
+    origin: ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"],
     credentials: true,
   }),
 );

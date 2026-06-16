@@ -2,6 +2,8 @@ import { Routes, Route } from "react-router-dom";
 import LandingPage from "./features/landing/LandingPage";
 import Login from "./features/auth/pages/Login";
 import SignUpPage from "./features/auth/pages/SignUp";
+import ForgotPassword from "./features/auth/pages/ForgotPassword";
+import ResetPassword from "./features/auth/pages/ResetPassword";
 import DashboardPage from "./features/dashboard/pages/Dashboard";
 import TemplatesPage from "./features/templates/pages/TemplatesPage";
 import FAQ from "./features/landing/components/FAQ";
@@ -33,6 +35,8 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/resume-analyzer" element={<ResumeAnalyzer />} />
           <Route path="/analyze/:templateId" element={<ResumeAnalyzer />} />

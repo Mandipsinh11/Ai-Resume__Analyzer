@@ -68,7 +68,24 @@ const MyResumes = () => {
                 </p>
               </div>
               <button
-                onClick={() => navigate("/create-ats-resume")}
+                onClick={() => {
+                  const userStr = localStorage.getItem("user");
+                  const userObj = userStr ? JSON.parse(userStr) : {};
+                  const plan = userObj.subscription?.plan || "free";
+                  const saved = JSON.parse(localStorage.getItem("savedResumes") || "[]");
+
+                  if (plan === "free") {
+                    alert("Please upgrade to a Basic or Pro plan to create a new resume with ATS!");
+                    navigate("/dashboard?upgrade=all");
+                    return;
+                  }
+                  if (plan === "basic" && saved.length >= 4) {
+                    alert("You have reached the limit of 4 saved resumes on the Basic plan. Please upgrade to Pro for unlimited resume creation!");
+                    navigate("/dashboard?upgrade=pro");
+                    return;
+                  }
+                  navigate("/create-ats-resume");
+                }}
                 className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-[var(--primary-glow)] hover:scale-105 active:scale-95 transition-all"
               >
                 <Plus className="w-4 h-4" />
