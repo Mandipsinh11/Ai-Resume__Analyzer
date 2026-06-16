@@ -128,7 +128,6 @@ const ATSResumeBuilder = () => {
           {[
             { id: "personal", label: "👤 Personal Info" },
             { id: "experience", label: "💼 Professional Details" },
-            { id: "optimization", label: "🎯 ATS Targeting" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -245,59 +244,14 @@ const ATSResumeBuilder = () => {
                 />
               </div>
 
-              <div className="pt-4 flex justify-between">
-                <button
-                  onClick={() => setActiveTab("personal")}
-                  className="px-6 py-3 rounded-xl border border-[var(--border)] font-bold text-sm transition-all active:scale-95"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={() => setActiveTab("optimization")}
-                  className="px-6 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold text-sm transition-all active:scale-95"
-                >
-                  Continue to Target Job
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: ATS Targeting */}
-          {activeTab === "optimization" && (
-            <div className="space-y-6 animate-fadeIn">
-              <div className="mb-4">
-                <h2 className="text-xl font-black">
-                  Tailor for the Application
-                </h2>
-                <p className="text-xs text-[var(--text-3)] mt-1">
-                  Providing a target description allows the AI to systematically
-                  inject mandatory contextual keywords.
-                </p>
-              </div>
-
-              <div>
-                <label className={labelClasses}>
-                  Target Job Description (Optional)
-                </label>
-                <textarea
-                  name="jobDescription"
-                  placeholder="Paste the full job listing description details text here..."
-                  value={formData.jobDescription}
-                  onChange={handleChange}
-                  rows={7}
-                  className={textareaClasses}
-                />
-              </div>
-
               <div className="pt-4 flex justify-between items-center gap-4">
                 <button
-                  onClick={() => setActiveTab("experience")}
+                  onClick={() => setActiveTab("personal")}
                   className="px-6 py-3 rounded-xl border border-[var(--border)] font-bold text-sm transition-all active:scale-95"
                   disabled={isGenerating}
                 >
                   Back
                 </button>
-
                 <button
                   onClick={handleGenerate}
                   disabled={isGenerating}

@@ -865,32 +865,6 @@ const ResumeFeedback = () => {
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between ml-1">
-              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-3)] flex items-center gap-2">
-                <FileText className="w-3 h-3 text-[var(--primary)]" /> Job Context
-                (Recommended)
-              </label>
-              {plan !== "pro" && (
-                <span className="text-[9px] font-black uppercase tracking-wider text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md">
-                  🔒 PRO Feature
-                </span>
-              )}
-            </div>
-            <textarea
-              className={`w-full bg-[var(--bg)] border border-[var(--border)] px-6 py-4 rounded-2xl text-[var(--text)] font-semibold focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-glow)] transition-all outline-none min-h-[140px] resize-none ${
-                plan !== "pro" ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-              placeholder={
-                plan === "pro"
-                  ? "Paste the target JD here to calibrate matching accuracy..."
-                  : "Upgrade to PRO to unlock Job Description keyword matching..."
-              }
-              value={plan === "pro" ? jobDesc : ""}
-              disabled={plan !== "pro"}
-              onChange={(e) => setJobDesc(e.target.value)}
-            />
-          </div>
 
           {error && (
             <div className="p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 text-xs font-bold flex items-start gap-3 shadow-sm">

@@ -177,33 +177,6 @@ const ResumeAnalyzer = () => {
                   </div>
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-3)] block">
-                      Job Description (Highly Recommended)
-                    </label>
-                    {plan !== "pro" && (
-                      <span className="text-[9px] font-black uppercase tracking-wider text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md">
-                        🔒 PRO Feature
-                      </span>
-                    )}
-                  </div>
-                  <textarea
-                    placeholder={
-                      plan === "pro"
-                        ? "Paste the job description here for hyper-accurate keyword matching..."
-                        : "Upgrade to PRO to unlock Job Description keyword matching..."
-                    }
-                    value={plan === "pro" ? jobDescription : ""}
-                    disabled={plan !== "pro"}
-                    onChange={(e) => setJobDescription(e.target.value)}
-                    rows={10}
-                    className={`w-full bg-[var(--bg)] border border-[var(--border)] rounded-2xl p-6 text-sm md:text-base font-medium focus:outline-none focus:border-[var(--primary)] shadow-sm transition-all resize-none leading-relaxed ${
-                      plan !== "pro" ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
-                  />
-                </div>
-
                 {error && (
                   <div className="p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 text-xs font-bold flex items-start gap-3 shadow-sm">
                     <AlertCircle className="w-4 h-4 shrink-0" />

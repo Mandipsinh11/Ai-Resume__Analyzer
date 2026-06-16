@@ -55,7 +55,8 @@ function getGeminiClient() {
 
 export function buildBasicAnalysis(resumeText, role = "", jobDescription = "") {
   const structured = parseResumeToStructured(resumeText);
-  const jdKeywords = jobDescription.split(/\W+/).filter(w => w.length > 3).slice(0, 10);
+  const targetText = jobDescription.trim() ? jobDescription : role;
+  const jdKeywords = targetText.split(/\W+/).filter(w => w.length > 3).slice(0, 10);
   const score = scoreResume(structured, jdKeywords);
   const gaps = analyzeGaps(structured, jobDescription, role);
 
@@ -98,7 +99,11 @@ export const analyzeAndImproveResume = async (
 ) => {
   try {
     const prompt = `
-    Analyze the provided resume and generate a detailed ATS Improvement Report.
+    Act as a senior recruiter, ATS specialist, hiring manager, and career coach with 15+ years of recruitment experience.
+    Analyze the provided resume thoroughly and provide a brutally honest, unbiased assessment of why recruiters may not be showing interest in this profile.
+    
+    Calculate a realistic, strictly calibrated ATS Score (out of 100) reflecting the true probability of passing ATS screening for the target role.
+    Do not sugarcoat the grading. Be direct and evidence-based, penalizing missing metrics, generic phrasing, and formatting issues.
 
     Return ONLY valid JSON.
     IMPORTANT:
