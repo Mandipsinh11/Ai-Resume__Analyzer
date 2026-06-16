@@ -14,8 +14,6 @@ const templates = [
 
 const TemplateCard = ({ t, i, setPreviewId, navigate }) => {
   const cardRef = useRef(null);
-  const [rotateX, setRotateX] = useState(0);
-  const [rotateY, setRotateY] = useState(0);
 
   const handleMouseMove = (e) => {
     if (!cardRef.current) return;
@@ -30,83 +28,86 @@ const TemplateCard = ({ t, i, setPreviewId, navigate }) => {
     const rX = -(mouseY / height) * 14;
     const rY = (mouseX / width) * 14;
     
-    setRotateX(rX);
-    setRotateY(rY);
+    card.style.transform = `perspective(1000px) rotateX(${rX}deg) rotateY(${rY}deg)`;
   };
 
   const handleMouseLeave = () => {
-    setRotateX(0);
-    setRotateY(0);
+    if (!cardRef.current) return;
+    cardRef.current.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg)`;
   };
 
   return (
     <motion.div
-      ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{
-        rotateX: rotateX,
-        rotateY: rotateY,
-        transformStyle: "preserve-3d",
-        perspective: 1000
-      }}
       initial={{ opacity: 0, scale: 0.95 }}
       whileInView={{ opacity: 1, scale: 1 }}
       viewport={{ once: true }}
       transition={{ type: "spring", stiffness: 100, damping: 18 }}
-      className="min-w-[300px] md:min-w-[340px] rounded-[32px] overflow-hidden bg-white/75 backdrop-blur-md border border-white/50 shadow-lg hover:shadow-[0_32px_80px_rgba(37,99,235,0.06)] hover:border-blue-200 transition-all duration-300 group relative flex flex-col justify-between"
+      className="min-w-[300px] md:min-w-[340px]"
     >
-      {/* Perspective Card Shimmer */}
-      <div className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-transparent via-white/20 to-transparent -translate-x-[100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out z-10" />
-      
-      <div className="relative h-[360px] md:h-[400px] overflow-hidden bg-slate-100/50">
-        <img
-          src={t.img}
-          alt={t.name}
-          className="w-full h-full object-cover object-top transition-transform duration-750 group-hover:scale-[1.04]"
-        />
+      <div
+        ref={cardRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          transformStyle: "preserve-3d",
+          perspective: 1000,
+          willChange: "transform",
+          transition: "transform 0.1s ease-out"
+        }}
+        className="w-full h-full rounded-[32px] overflow-hidden bg-white/75 backdrop-blur-md border border-white/50 shadow-lg hover:shadow-[0_32px_80px_rgba(37,99,235,0.06)] hover:border-blue-200 transition-all duration-300 group relative flex flex-col justify-between"
+      >
+        {/* Perspective Card Shimmer */}
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-transparent via-white/20 to-transparent -translate-x-[100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out z-10" />
+        
+        <div className="relative h-[360px] md:h-[400px] overflow-hidden bg-slate-100/50">
+          <img
+            src={t.img}
+            alt={t.name}
+            className="w-full h-full object-cover object-top transition-transform duration-750 group-hover:scale-[1.04]"
+          />
 
-        {/* Frosted overlay backdrop with single-click details display */}
-        <div 
-          className="absolute inset-0 bg-blue-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-4 backdrop-blur-[4px] cursor-pointer z-10"
-          onClick={() => setPreviewId(t.id)}
-        >
-          <motion.div 
-            whileHover={{ scale: 1.1 }}
-            className="w-14 h-14 rounded-full bg-white/90 text-blue-600 flex items-center justify-center shadow-xl backdrop-blur-md"
+          {/* Frosted overlay backdrop with single-click details display */}
+          <div 
+            className="absolute inset-0 bg-blue-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-4 backdrop-blur-[4px] cursor-pointer z-10"
+            onClick={() => setPreviewId(t.id)}
           >
-            <Eye size={24} />
-          </motion.div>
-          <span className="px-5 py-2.5 rounded-xl bg-white/95 text-[var(--primary)] font-black text-xs uppercase tracking-widest shadow-lg hover:bg-white transition-all">
-            Quick Preview
-          </span>
-        </div>
-
-        {t.tag && (
-          <div className="absolute top-6 left-6 z-10">
-            <span className="px-4 py-1.5 rounded-full bg-white/80 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-[var(--primary)] shadow-sm border border-white/30">
-              {t.tag}
+            <motion.div 
+              whileHover={{ scale: 1.1 }}
+              className="w-14 h-14 rounded-full bg-white/90 text-blue-600 flex items-center justify-center shadow-xl backdrop-blur-md"
+            >
+              <Eye size={24} />
+            </motion.div>
+            <span className="px-5 py-2.5 rounded-xl bg-white/95 text-[var(--primary)] font-black text-xs uppercase tracking-widest shadow-lg hover:bg-white transition-all">
+              Quick Preview
             </span>
           </div>
-        )}
-      </div>
 
-      <div className="p-6 md:p-8 flex items-center justify-between border-t border-slate-100/50 bg-white/40 relative z-10">
-        <div>
-          <h3 className="text-xl font-black text-[var(--text)] tracking-tight mb-1 group-hover:text-[var(--primary)] transition-colors">
-            {t.name}
-          </h3>
-          <p className="text-xs font-black uppercase tracking-widest text-[var(--text-3)]">
-            Professional Layout
-          </p>
+          {t.tag && (
+            <div className="absolute top-6 left-6 z-10">
+              <span className="px-4 py-1.5 rounded-full bg-white/80 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-[var(--primary)] shadow-sm border border-white/30">
+                {t.tag}
+              </span>
+            </div>
+          )}
         </div>
-        <button 
-          onClick={() => navigate(`/editor/${t.id}`)}
-          className="w-10 h-10 rounded-xl bg-white border border-slate-250 flex items-center justify-center text-[var(--text-3)] hover:text-[var(--primary)] hover:border-[var(--primary)] hover:shadow-md transition-all shrink-0 cursor-pointer"
-          title="Use Template"
-        >
-          <ExternalLink size={18} />
-        </button>
+
+        <div className="p-6 md:p-8 flex items-center justify-between border-t border-slate-100/50 bg-white/40 relative z-10">
+          <div>
+            <h3 className="text-xl font-black text-[var(--text)] tracking-tight mb-1 group-hover:text-[var(--primary)] transition-colors">
+              {t.name}
+            </h3>
+            <p className="text-xs font-black uppercase tracking-widest text-[var(--text-3)]">
+              Professional Layout
+            </p>
+          </div>
+          <button 
+            onClick={() => navigate(`/editor/${t.id}`)}
+            className="w-10 h-10 rounded-xl bg-white border border-slate-250 flex items-center justify-center text-[var(--text-3)] hover:text-[var(--primary)] hover:border-[var(--primary)] hover:shadow-md transition-all shrink-0 cursor-pointer"
+            title="Use Template"
+          >
+            <ExternalLink size={18} />
+          </button>
+        </div>
       </div>
     </motion.div>
   );
@@ -179,7 +180,7 @@ const TemplatesSection = () => {
 
         <div
           ref={ref}
-          className="flex gap-8 overflow-x-auto scroll-smooth no-scrollbar pb-10 overscroll-contain"
+          className="flex gap-8 overflow-x-auto scroll-smooth no-scrollbar pb-10 overscroll-x-contain"
         >
           {templates.map((t, i) => (
             <TemplateCard

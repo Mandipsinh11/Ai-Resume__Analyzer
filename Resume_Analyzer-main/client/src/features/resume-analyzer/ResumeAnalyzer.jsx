@@ -70,6 +70,10 @@ const ResumeAnalyzer = () => {
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
 
+  const userStr = localStorage.getItem("user");
+  const userObj = userStr ? JSON.parse(userStr) : {};
+  const plan = userObj.subscription?.plan || "free";
+
   const handleAnalyze = async () => {
     if (!role) {
       setError("Please specify the target job role.");
@@ -174,15 +178,29 @@ const ResumeAnalyzer = () => {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-3)] mb-4 block">
-                    Job Description (Highly Recommended)
-                  </label>
+                  <div className="flex items-center justify-between mb-4">
+                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-3)] block">
+                      Job Description (Highly Recommended)
+                    </label>
+                    {plan !== "pro" && (
+                      <span className="text-[9px] font-black uppercase tracking-wider text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md">
+                        🔒 PRO Feature
+                      </span>
+                    )}
+                  </div>
                   <textarea
-                    placeholder="Paste the job description here for hyper-accurate keyword matching..."
-                    value={jobDescription}
+                    placeholder={
+                      plan === "pro"
+                        ? "Paste the job description here for hyper-accurate keyword matching..."
+                        : "Upgrade to PRO to unlock Job Description keyword matching..."
+                    }
+                    value={plan === "pro" ? jobDescription : ""}
+                    disabled={plan !== "pro"}
                     onChange={(e) => setJobDescription(e.target.value)}
                     rows={10}
-                    className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-2xl p-6 text-sm md:text-base font-medium focus:outline-none focus:border-[var(--primary)] shadow-sm transition-all resize-none leading-relaxed"
+                    className={`w-full bg-[var(--bg)] border border-[var(--border)] rounded-2xl p-6 text-sm md:text-base font-medium focus:outline-none focus:border-[var(--primary)] shadow-sm transition-all resize-none leading-relaxed ${
+                      plan !== "pro" ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                   />
                 </div>
 

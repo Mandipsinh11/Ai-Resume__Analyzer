@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import axios from "axios";
 import {
   ArrowRight,
   Layout,
@@ -14,8 +15,9 @@ import {
 import ResumeFeedback from "../../resume-analyzer/ResumeFeedback";
 import PaymentModal from "../../../components/ui/PaymentModal";
 
-export const DashboardNavbar = ({ displayName, onLogout }) => {
+export const DashboardNavbar = ({ displayName, onLogout, setActiveTab }) => {
   const [open, setOpen] = useState(false);
+  const location = useLocation();
 
   return (
     <motion.header
@@ -58,6 +60,7 @@ export const DashboardNavbar = ({ displayName, onLogout }) => {
             { name: "Dashboard", href: "/dashboard" },
             { name: "My Resumes", href: "/my-resumes" },
             { name: "Settings", href: "/settings" },
+<<<<<<< HEAD
           ].map((item) => (
             <Link
               key={item.name}
@@ -67,6 +70,29 @@ export const DashboardNavbar = ({ displayName, onLogout }) => {
               {item.name}
             </Link>
           ))}
+=======
+          ].map((item) => {
+            const active = location.pathname === item.href;
+            return (
+              <Link
+                key={item.name}
+                to={item.href}
+                onClick={() => {
+                  if (item.href === "/dashboard" && setActiveTab) {
+                    setActiveTab("overview");
+                  }
+                }}
+                className={`text-sm font-semibold transition-colors duration-200 ${
+                  active
+                    ? "text-slate-900"
+                    : "text-slate-500 hover:text-[var(--primary)]"
+                }`}
+              >
+                {item.name}
+              </Link>
+            );
+          })}
+>>>>>>> 29febc269fc3b5ae89e7250d360451803b7076ce
           <button
             type="button"
             onClick={onLogout}
@@ -74,14 +100,14 @@ export const DashboardNavbar = ({ displayName, onLogout }) => {
           >
             Log Out
           </button>
-          <div className="w-10 h-10 rounded-full bg-[var(--primary)] flex items-center justify-center text-xs font-black text-white shadow-lg shadow-[var(--primary-glow)]">
+          <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center text-xs font-black text-white shadow-md shadow-blue-500/10 uppercase">
             {displayName.charAt(0)}
           </div>
         </div>
 
         {/* Mobile Hamburger button */}
         <div className="flex md:hidden items-center gap-4">
-          <div className="w-10 h-10 rounded-full bg-[var(--primary)] flex items-center justify-center text-xs font-black text-white shadow-lg shadow-[var(--primary-glow)]">
+          <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center text-xs font-black text-white shadow-md shadow-blue-500/10 uppercase">
             {displayName.charAt(0)}
           </div>
           <button
@@ -130,7 +156,12 @@ export const DashboardNavbar = ({ displayName, onLogout }) => {
                 <Link
                   key={item.name}
                   to={item.href}
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    setOpen(false);
+                    if (item.href === "/dashboard" && setActiveTab) {
+                      setActiveTab("overview");
+                    }
+                  }}
                   className="text-sm font-bold text-[var(--text-2)] hover:text-[var(--primary)] py-2"
                 >
                   {item.name}
@@ -155,7 +186,8 @@ export const DashboardNavbar = ({ displayName, onLogout }) => {
 };
 
 const DashboardPage = () => {
-  const [activeTab, setActiveTab] = useState("overview");
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || "overview");
   const [paymentPlan, setPaymentPlan] = useState(null);
   const navigate = useNavigate();
   const displayName = useMemo(() => {
@@ -169,10 +201,39 @@ const DashboardPage = () => {
     }
   }, []);
 
+  const userStr = localStorage.getItem("user");
+  const userObj = userStr ? JSON.parse(userStr) : {};
+  const plan = userObj.subscription?.plan || "free";
+
   useEffect(() => {
     // Auth check disabled temporarily to ensure dashboard visibility for user testing
     console.log("Dashboard loaded. User:", localStorage.getItem("user"));
+
+    const syncSubscription = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        user.subscription = {
+          plan: "pro",
+          status: "active",
+          startDate: new Date(),
+          expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+        };
+        localStorage.setItem("user", JSON.stringify(user));
+      } catch (err) {
+        console.error("Failed to sync mock subscription:", err);
+      }
+    };
+    syncSubscription();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const upgradeParam = params.get("upgrade");
+    if (upgradeParam === "all" || upgradeParam === "pro") {
+      setPaymentPlan(upgradeParam);
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -248,7 +309,7 @@ const DashboardPage = () => {
         />
       </div>
 
-      <DashboardNavbar displayName={displayName} onLogout={handleLogout} />
+      <DashboardNavbar displayName={displayName} onLogout={handleLogout} setActiveTab={setActiveTab} />
 
       <motion.main
         initial="hidden"
@@ -324,6 +385,19 @@ const DashboardPage = () => {
                     key={tool.title}
                     variants={iV}
                     onClick={() => {
+                      if (tool.route === "/create-ats-resume") {
+                        const savedResumes = JSON.parse(localStorage.getItem("savedResumes") || "[]");
+                        if (plan === "free") {
+                          setPaymentPlan("all");
+                          alert("Please upgrade to a Basic or Pro plan to create a new resume with ATS!");
+                          return;
+                        }
+                        if (plan === "basic" && savedResumes.length >= 4) {
+                          setPaymentPlan("pro");
+                          alert("You have reached the limit of 4 saved resumes on the Basic plan. Please upgrade to Pro for unlimited resume creation!");
+                          return;
+                        }
+                      }
                       if (tool.route) {
                         navigate(tool.route);
                       } else if (tool.tab) {
@@ -391,7 +465,7 @@ const DashboardPage = () => {
                       Go Pro Now
                     </button>
                     <button
-                      onClick={() => setPaymentPlan("basic")}
+                      onClick={() => setPaymentPlan("all")}
                       className="px-10 py-5 rounded-2xl bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] font-black text-xs uppercase tracking-[0.2em] hover:bg-[var(--bg-2)] transition-all"
                     >
                       View Plans

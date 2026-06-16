@@ -139,9 +139,12 @@ const PAYMENT_MODES = [
 ];
 
 const PaymentModal = ({ plan, onClose, onSuccess }) => {
+  const [activePlan, setActivePlan] = useState(
+    plan === "all" || !plan ? "basic" : plan
+  );
   const [selectedMode, setSelectedMode] = useState(null);
   const [loading, setLoading] = useState(false);
-  const p = PLAN_INFO[plan] || PLAN_INFO.basic;
+  const p = PLAN_INFO[activePlan] || PLAN_INFO.basic;
   const [rate, setRate] = useState(null);
   const [currency, setCurrency] = useState(null);
   const FX_KEY = "fxCache_ipapi_v1";
@@ -150,7 +153,7 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
 
   const getModalPrice = () => {
     if (!currency) return null;
-    if (plan === "free") return 0;
+    if (activePlan === "free") return 0;
 
     // Log rate to prevent unused variable warning while keeping it for future enhancements
     if (rate) {
@@ -158,9 +161,9 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
     }
 
     if (currency === "INR") {
-      return plan === "basic" ? 299 : 999;
+      return activePlan === "basic" ? 299 : 999;
     } else {
-      return plan === "basic" ? 4.99 : 14.99;
+      return activePlan === "basic" ? 4.99 : 14.99;
     }
   };
 
@@ -228,7 +231,7 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
         import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
       const { data } = await axios.post(
         `${apiUrl}/api/payment/create-order`,
-        { plan, currency },
+        { plan: activePlan, currency },
         { headers: { Authorization: `Bearer ${token}` } },
       );
 
@@ -251,12 +254,22 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
-                plan,
+                plan: activePlan,
               },
               { headers: { Authorization: `Bearer ${token}` } },
             );
             if (verifyRes.data.success) {
               onClose();
+              try {
+                const user = JSON.parse(localStorage.getItem("user") || "{}");
+                user.subscription = {
+                  plan: activePlan,
+                  status: "active"
+                };
+                localStorage.setItem("user", JSON.stringify(user));
+              } catch (err) {
+                console.error("Local storage update error:", err);
+              }
               if (onSuccess) onSuccess(plan);
               else {
                 alert(`🎉 Payment successful! ${p.name} plan activated.`);
@@ -271,7 +284,7 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
           setLoading(false);
         },
         prefill: {},
-        theme: { color: plan === "pro" ? "#f59e0b" : "#2563eb" },
+        theme: { color: activePlan === "pro" ? "#f59e0b" : "#2563eb" },
         modal: { ondismiss: () => setLoading(false) },
       };
       const rzp = new window.Razorpay(options);
@@ -326,6 +339,36 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
           >
             ✕
           </button>
+          {plan === "all" && (
+            <div className="flex bg-white/5 p-1 rounded-xl mb-4 border border-white/5 mr-10">
+              <button
+                onClick={() => {
+                  setActivePlan("basic");
+                  setSelectedMode(null);
+                }}
+                className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  activePlan === "basic"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/10"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Basic Plan
+              </button>
+              <button
+                onClick={() => {
+                  setActivePlan("pro");
+                  setSelectedMode(null);
+                }}
+                className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  activePlan === "pro"
+                    ? "bg-amber-500 text-white shadow-md shadow-amber-500/10"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Pro Plan
+              </button>
+            </div>
+          )}
           <p
             className="text-[10px] font-black uppercase tracking-widest mb-1"
             style={{ color: p.color }}
@@ -434,7 +477,7 @@ const PaymentModal = ({ plan, onClose, onSuccess }) => {
             className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
             style={{
               background: selectedMode ? p.gradient : "rgba(255,255,255,0.05)",
-              color: plan === "pro" ? "#000" : "#fff",
+              color: activePlan === "pro" ? "#000" : "#fff",
               boxShadow: selectedMode ? `0 0 24px ${p.glow}` : "none",
             }}
           >

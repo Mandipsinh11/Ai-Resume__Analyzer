@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 /* Pure CSS resume shapes — optimized for mobile performance */
 const FallingResumes = () => {
@@ -24,17 +24,19 @@ const FallingResumes = () => {
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  if (reducedMotion) return null;
+  const resumes = useMemo(() => {
+    return Array.from({ length: count }, (_, i) => ({
+      id: i,
+      left: `${4 + Math.random() * 92}%`,
+      delay: Math.random() * 14,
+      duration: 20 + Math.random() * 14,
+      size: 32 + Math.random() * 44,
+      rotation: -25 + Math.random() * 50,
+      lines: 2 + Math.floor(Math.random() * 3),
+    }));
+  }, [count]);
 
-  const resumes = Array.from({ length: count }, (_, i) => ({
-    id: i,
-    left: `${4 + Math.random() * 92}%`,
-    delay: Math.random() * 14,
-    duration: 20 + Math.random() * 14,
-    size: 32 + Math.random() * 44,
-    rotation: -25 + Math.random() * 50,
-    lines: 2 + Math.floor(Math.random() * 3),
-  }));
+  if (reducedMotion) return null;
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">

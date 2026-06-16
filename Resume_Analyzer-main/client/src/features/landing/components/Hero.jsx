@@ -275,7 +275,14 @@ const Hero = () => {
             <motion.button
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => navigate("/login")}
+              onClick={() => {
+                const userStr = localStorage.getItem("user");
+                if (userStr) {
+                  navigate("/dashboard", { state: { activeTab: "analyze" } });
+                } else {
+                  navigate("/login");
+                }
+              }}
               className="group px-9 py-4 rounded-2xl font-black text-sm text-white shadow-xl shadow-blue-500/25 overflow-hidden relative glow-button text-center"
               style={{
                 background:

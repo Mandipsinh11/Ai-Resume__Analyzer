@@ -322,6 +322,15 @@ class ATSScorer:
         total = sum(breakdown.values())
         ats_score = min(100, max(0, round(total)))
 
+        # Word-count based safeguards to prevent score inflation for weak resumes
+        word_count = len(resume_text.split())
+        if word_count < 30:
+            ats_score = min(ats_score, 19)
+        elif word_count < 100:
+            ats_score = min(ats_score, 45)
+        elif word_count < 200:
+            ats_score = min(ats_score, 65)
+
         grade, grade_detail = self._grade(ats_score)
 
         # Step 7 – Keyword matrix (for JSON output)

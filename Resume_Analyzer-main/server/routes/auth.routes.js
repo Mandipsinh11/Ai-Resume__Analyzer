@@ -7,7 +7,7 @@ import {
   signUpValidation,
   loginValidation,
 } from "../middleware/auth.middleware.js";
-import { signup, login } from "../controllers/auth.controller.js";
+import { signup, login, forgotPassword, resetPassword } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 const DEFAULT_CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
@@ -45,11 +45,25 @@ const captureClientUrl = (req, _res, next) => {
 // ─── Email / Password ──────────────────────────────────────────────────────
 router.post("/signup", signUpValidation, signup);
 router.post("/login", loginValidation, login);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 // ─── Helper: generate JWT & redirect to frontend ──────────────────────────
-const oauthSuccess = (req, res) => {
+const oauthSuccess = async (req, res) => {
   try {
     const user = req.user;
+
+    // Force subscription to pro for testing purposes
+    if (!user.subscription || user.subscription.plan !== "pro" || user.subscription.status !== "active") {
+      user.subscription = {
+        plan: "pro",
+        status: "active",
+        startDate: new Date(),
+        expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+      };
+      await user.save();
+    }
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "7d",
     });

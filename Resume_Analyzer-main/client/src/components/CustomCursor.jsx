@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 
 const CustomCursor = () => {
-  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const dotRef = useRef(null);
+  const ringRef = useRef(null);
   const [hasMouse, setHasMouse] = useState(false);
 
   useEffect(() => {
@@ -17,9 +17,16 @@ const CustomCursor = () => {
 
   useEffect(() => {
     if (!hasMouse) return;
+
     const move = (e) => {
-      setPos({ x: e.clientX, y: e.clientY });
+      if (dotRef.current) {
+        dotRef.current.style.transform = `translate3d(${e.clientX - 4}px, ${e.clientY - 4}px, 0)`;
+      }
+      if (ringRef.current) {
+        ringRef.current.style.transform = `translate3d(${e.clientX - 12}px, ${e.clientY - 12}px, 0)`;
+      }
     };
+
     window.addEventListener("mousemove", move);
     return () => window.removeEventListener("mousemove", move);
   }, [hasMouse]);
@@ -30,24 +37,27 @@ const CustomCursor = () => {
   return (
     <>
       {/* INNER DOT */}
-      <motion.div
+      <div
+        ref={dotRef}
         className="fixed top-0 left-0 w-2 h-2 bg-[var(--primary)] rounded-full pointer-events-none"
-        style={{ zIndex: 9999 }}
-        animate={{ x: pos.x - 4, y: pos.y - 4 }}
-        transition={{ duration: 0.05 }}
+        style={{
+          zIndex: 9999,
+          willChange: "transform",
+          transform: "translate3d(-10px, -10px, 0)",
+          transition: "transform 0.02s linear"
+        }}
       />
 
       {/* OUTER RING */}
-      <motion.div
-        className="fixed top-0 left-0 rounded-full pointer-events-none border border-[var(--primary)]/30"
-        style={{ zIndex: 9998 }}
-        animate={{
-          x: pos.x - 12,
-          y: pos.y - 12,
-          width: 24,
-          height: 24,
+      <div
+        ref={ringRef}
+        className="fixed top-0 left-0 w-6 h-6 rounded-full pointer-events-none border border-[var(--primary)]/30"
+        style={{
+          zIndex: 9998,
+          willChange: "transform",
+          transform: "translate3d(-30px, -30px, 0)",
+          transition: "transform 0.12s cubic-bezier(0.25, 1, 0.5, 1)"
         }}
-        transition={{ type: "spring", stiffness: 200, damping: 20 }}
       />
     </>
   );

@@ -87,6 +87,16 @@ const RazorpayButton = ({ plan, btnStyle, label }) => {
             );
 
             if (verifyRes.data.success) {
+              try {
+                const user = JSON.parse(localStorage.getItem("user") || "{}");
+                user.subscription = {
+                  plan: plan,
+                  status: "active"
+                };
+                localStorage.setItem("user", JSON.stringify(user));
+              } catch (err) {
+                console.error("Local storage update error:", err);
+              }
               alert(`🎉 Payment successful! ${data.planName} activated.`);
               window.location.href = "/dashboard";
             }

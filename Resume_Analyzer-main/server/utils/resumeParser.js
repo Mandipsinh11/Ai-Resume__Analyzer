@@ -3,92 +3,78 @@ const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
 import fs from "fs";
 import mammoth from "mammoth";
-import nlp from "compromise";
-import Tesseract from "tesseract.js";
 import { execSync } from "child_process";
 import path from "path";
+import { scoreResume } from "./atsScorer.js";
 
-
+// Canonical Schema Synonyms
 const SECTION_ALIASES = {
-  experience: [
-    "experience",
-    "work experience",
-    "employment",
-    "professional experience",
-  ],
-  education: ["education", "academics", "academic background"],
-  skills: ["skills", "technical skills", "core skills", "key skills"],
-  projects: ["projects", "project experience"],
-  summary: ["summary", "profile", "objective"],
+  summary: ["summary", "professional summary", "profile", "professional profile", "about me", "objective", "career objective", "career summary", "summary of qualifications", "qualifications summary"],
+  education: ["education", "academics", "academic background", "academic profile", "academic qualifications", "education details", "educational background", "educational qualifications"],
+  experience: ["experience", "work experience", "employment", "professional experience", "work history", "employment history", "career history", "relevant experience", "experience history"],
+  projects: ["projects", "personal projects", "technical projects", "academic projects", "project experience", "key projects", "major projects"],
+  skills: ["skills", "technical skills", "core skills", "key skills", "technologies", "core competencies", "skills & expertise", "tools", "professional skills", "technical expertise", "core technologies", "key technologies"],
+  certifications: ["certifications", "licenses", "certifications & licenses", "courses", "professional development", "credentials"],
+  languages: ["languages", "language proficiency"],
+  achievements: ["achievements", "awards", "honors"],
+  hobbies: ["hobbies", "interests", "extracurricular activities", "extracurriculars"]
 };
 
+/**
+ * Normalizes any unknown value to a string according to specifications.
+ * Enforces:
+ * string -> string
+ * array -> joined string
+ * object -> serialized
+ * null -> empty string
+ * undefined -> empty string
+ */
+export function normalize(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(normalize).filter(Boolean).join("\n");
+  }
+  if (typeof value === "object") {
+    try {
+      const vals = Object.values(value).map(normalize).filter(Boolean);
+      return vals.join(" ");
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
+}
 
-const SKILL_KEYWORDS = [
-  "javascript",
-  "typescript",
-  "react",
-  "node.js",
-  "node",
-  "express",
-  "mongodb",
-  "postgresql",
-  "mysql",
-  "html",
-  "css",
-  "tailwind",
-  "python",
-  "java",
-  "c",
-  "c++",
-  "c#",
-  "go",
-  "rust",
-  "django",
-  "flask",
-  "fastapi",
-  "spring",
-  "next.js",
-  "redux",
-  "graphql",
-  "rest",
-  "api",
-  "aws",
-  "gcp",
-  "azure",
-  "docker",
-  "kubernetes",
+export function safeTrim(value) {
+  return normalize(value).trim();
+}
 
-  "git",
-];
+export function safeSplit(value, separator) {
+  return normalize(value).split(separator);
+}
 
-const normalizeText = (text) =>
-  text
-    .replace(/\t/g, " ")
-    .replace(/\u00a0/g, " ")
-    .replace(/[•·■●]/g, "•")
-    .replace(/\s{2,}/g, " ")
-    .replace(/\r?\n{3,}/g, "\n\n")
-    .trim();
-
-const NAME_STOPWORDS = new Set([
-  "resume",
-  "curriculum vitae",
-  "cv",
-  "profile",
-  "summary",
-  "objective",
-  "experience",
-  "education",
-  "skills",
-  "projects",
-]);
+export function safeMap(value, callback) {
+  if (Array.isArray(value)) {
+    return value.map(callback);
+  }
+  if (value == null) {
+    return [];
+  }
+  return [value].map(callback);
+}
 
 const looksLikeName = (line) => {
   const normalized = line.replace(/[^a-zA-Z\s.'-]/g, "").trim();
   if (!normalized) return false;
 
   const lower = normalized.toLowerCase();
-  if (NAME_STOPWORDS.has(lower)) return false;
+  const stopwords = new Set(["resume", "curriculum vitae", "cv", "profile", "summary", "objective", "experience", "education", "skills", "projects", "certifications", "hobbies", "languages", "achievements", "interests"]);
+  if (stopwords.has(lower)) return false;
   if (/@|\d{3,}|https?:\/\//i.test(line)) return false;
 
   const words = normalized.split(/\s+/).filter(Boolean);
@@ -98,17 +84,10 @@ const looksLikeName = (line) => {
 };
 
 const extractName = (text) => {
-  const lines = text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .slice(0, 15);
-
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean).slice(0, 15);
   const candidate = lines.find(looksLikeName);
   if (candidate) return candidate.substring(0, 80);
-
-  if (!lines.length) return "Anonymous";
-  return lines[0].substring(0, 80);
+  return lines[0] ? lines[0].substring(0, 80) : "Anonymous";
 };
 
 const extractEmail = (text) => {
@@ -121,307 +100,402 @@ const extractPhone = (text) => {
   return match ? match[0] : "";
 };
 
-const extractDegree = (text) => {
-  const degreePatterns = [
-    /\b(b\.?\s?tech|bachelor(?:'s)?\s+of\s+technology)\b/gi,
-    /\b(b\.?\s?e\.?|bachelor(?:'s)?\s+of\s+engineering)\b/gi,
-    /\b(b\.?\s?sc|bachelor(?:'s)?\s+of\s+science)\b/gi,
-    /\b(b\.?\s?com|bachelor(?:'s)?\s+of\s+commerce)\b/gi,
-    /\b(b\.?\s?a\.?|bachelor(?:'s)?\s+of\s+arts)\b/gi,
-    /\b(m\.?\s?tech|master(?:'s)?\s+of\s+technology)\b/gi,
-    /\b(m\.?\s?e\.?|master(?:'s)?\s+of\s+engineering)\b/gi,
-    /\b(m\.?\s?sc|master(?:'s)?\s+of\s+science)\b/gi,
-    /\b(m\.?\s?b\.?a\.?|master(?:'s)?\s+of\s+business\s+administration)\b/gi,
-    /\b(ph\.?d\.?|doctorate|doctor\s+of\s+philosophy)\b/gi,
-    /\b(diploma)\b/gi,
-  ];
-
-  const found = new Set();
-  for (const pattern of degreePatterns) {
-    const matches = text.match(pattern) || [];
-    for (const m of matches) {
-      const normalized = m.replace(/\s+/g, " ").trim();
-      if (normalized) found.add(normalized);
-    }
-  }
-
-  return Array.from(found).slice(0, 5);
+const extractLocation = (text) => {
+  const match = text.match(/\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)*),\s*([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)\b/);
+  return match ? match[0] : "";
 };
 
-const buildSectionIndex = (text) => {
-  const lower = text.toLowerCase();
-  const headings = Object.values(SECTION_ALIASES).flat();
-  const matches = [];
-  for (const heading of headings) {
-    const regex = new RegExp(`(^|\\n)\\s*${heading}\\s*(:)?\\s*(\\n|$)`, "i");
-    const match = regex.exec(lower);
-    if (match) {
-      matches.push({ heading, index: match.index });
-    }
-  }
-  return matches.sort((a, b) => a.index - b.index);
+const extractUrls = (text) => {
+  const urls = text.match(/\bhttps?:\/\/[^\s()<>]+/gi) || [];
+  const linkedin = urls.find(u => /linkedin\.com/i.test(u)) || text.match(/linkedin\.com\/in\/[A-Za-z0-9\-_%]+/i)?.[0] || "";
+  const github = urls.find(u => /github\.com/i.test(u)) || text.match(/github\.com\/[A-Za-z0-9\-_]+/i)?.[0] || "";
+  const portfolio = urls.find(u => !/linkedin\.com|github\.com/i.test(u)) || "";
+  return { linkedin, github, portfolio };
 };
 
-const extractSection = (text, sectionKey) => {
-  const matches = buildSectionIndex(text);
-  if (!matches.length) return "";
+/**
+ * Robustly parses raw text into a canonical Structured Resume JSON schema.
+ * Operates block-by-block and prevents cross-section leakage.
+ *
+ * @param {string} rawText - Clean raw text from document parser.
+ * @returns {object} Canonical Structured Resume JSON.
+ */
+export function parseResumeToStructured(rawText) {
+  const text = normalize(rawText);
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
 
-  const aliases = SECTION_ALIASES[sectionKey] || [];
-  const current = matches.find((m) => aliases.includes(m.heading));
-  if (!current) return "";
-
-  const idx = matches.indexOf(current);
-  const start = current.index + current.heading.length;
-  const end = idx < matches.length - 1 ? matches[idx + 1].index : text.length;
-
-  return text.substring(start, end).trim();
-};
-
-const extractSkills = (text) => {
-  const lower = text.toLowerCase();
-  const found = new Set();
-  for (const skill of SKILL_KEYWORDS) {
-    if (lower.includes(skill)) {
-      found.add(skill);
-    }
-  }
-  return Array.from(found).slice(0, 30);
-};
-
-const extractExperience = (text) => {
-  const section = extractSection(text, "experience");
-  return section.replace(/^[a-zA-Z]\s*\n/, "").trim();
-};
-
-const extractEducation = (text) => {
-  const section = extractSection(text, "education");
-  return section.replace(/^[a-zA-Z]\s*\n/, "").trim();
-};
-
-const computeAtsScore = ({
-  name,
-  email,
-  phone,
-  skills,
-  experience,
-  education,
-  rawText,
-}) => {
-  const breakdown = {
-    contact: 0,
-    skills: 0,
-    experience: 0,
-    education: 0,
-    keywords: 0,
-    length: 0,
+  const rawSections = {
+    header: [],
+    summary: [],
+    education: [],
+    experience: [],
+    projects: [],
+    skills: [],
+    certifications: [],
+    languages: [],
+    achievements: [],
+    hobbies: []
   };
 
-  const wordCount = rawText.split(/\s+/).filter(Boolean).length;
-  const hasMetrics = /\b\d+%|\b\d{1,3}[,.]?\d{0,2}\b/.test(experience);
-  const bulletCount = (experience.match(/•/g) || []).length;
-  const sectionCoverage =
-    (name ? 1 : 0) +
-    (email ? 1 : 0) +
-    (phone ? 1 : 0) +
-    (skills.length ? 1 : 0) +
-    (experience ? 1 : 0) +
-    (education ? 1 : 0);
+  let currentSection = "header";
 
-  const actionVerbs = [
-    "built",
-    "designed",
-    "developed",
-    "implemented",
-    "optimized",
-    "led",
-    "improved",
-    "created",
-    "managed",
-    "delivered",
-    "deployed",
-    "engineered",
-    "analyzed",
-    "automated",
-  ];
-  const actionVerbHits = actionVerbs.filter((v) =>
-    new RegExp(`\\b${v}\\b`, "i").test(experience),
-  ).length;
-  const actionVerbScore = Math.min(15, actionVerbHits * 3);
-
-  const dateHits = (experience.match(/\b(20\d{2}|19\d{2})\b/g) || []).length;
-  const hasDateRanges =
-    /\b(20\d{2}|19\d{2})\s*[–-]\s*(20\d{2}|present|current)\b/i.test(
-      experience,
-    );
-  const dateScore = Math.min(
-    10,
-    dateHits >= 2 || hasDateRanges ? 10 : dateHits >= 1 ? 6 : 2,
-  );
-
-  const impactScore = hasMetrics ? 15 : 6;
-  const bulletScore = bulletCount >= 6 ? 10 : bulletCount >= 3 ? 7 : 4;
-
-  const formattingIssues = {
-    tablesOrColumns: /\|.+\|/.test(rawText) ? 1 : 0,
-    headersFooters: /(page \d+ of \d+)/i.test(rawText) ? 1 : 0,
-    fancyBullets: /[◦▪■□◆]/.test(rawText) ? 1 : 0,
-    imagesOrIcons: /(icon|logo|image|graphic)/i.test(rawText) ? 1 : 0,
+  const getSectionHeaderKey = (line) => {
+    if (line.length > 50) return null;
+    const cleanLine = line.replace(/[:\-\s•*#]+$/, "").replace(/^[:\-\s•*#]+/, "").trim().toLowerCase();
+    
+    for (const [key, aliases] of Object.entries(SECTION_ALIASES)) {
+      if (aliases.includes(cleanLine)) {
+        return key;
+      }
+    }
+    return null;
   };
-  const formattingIssueCount = Object.values(formattingIssues).reduce(
-    (a, b) => a + b,
-    0,
-  );
 
-  breakdown.contact = (name ? 5 : 0) + (email ? 5 : 0) + (phone ? 5 : 0);
-
-  breakdown.skills = Math.min(skills.length, 15);
-  breakdown.experience = experience ? 15 : 0;
-  breakdown.education = education ? 10 : 0;
-  breakdown.keywords = Math.min(skills.length * 2, 20);
-
-  if (wordCount >= 250 && wordCount <= 900) {
-    breakdown.length = 10;
-  } else if (wordCount >= 150) {
-    breakdown.length = 6;
-  } else {
-    breakdown.length = 2;
+  // 1. Group lines by synonymous section headers
+  for (const line of lines) {
+    const key = getSectionHeaderKey(line);
+    if (key) {
+      currentSection = key;
+    } else {
+      rawSections[currentSection].push(line);
+    }
   }
 
-  const score =
-    breakdown.contact +
-    breakdown.skills +
-    breakdown.experience +
-    breakdown.education +
-    breakdown.keywords +
-    breakdown.length;
+  // 2. Prevent leakage in header section
+  const refinedHeaderLines = [];
+  for (const line of rawSections.header) {
+    const lowerLine = line.toLowerCase();
+    
+    // Reroute leaked education
+    const eduKeywords = ["bachelor", "master", "phd", "b.tech", "m.tech", "b.sc", "m.sc", "b.e", "m.b.a", "degree", "diploma", "gpa", "cgpa", "university", "college", "school", "institute"];
+    const hasEduKeyword = eduKeywords.some(kw => lowerLine.includes(kw)) || /\b(20\d{2}|19\d{2})\b/.test(line);
 
-  const repetitionIssues = (() => {
-    const words = rawText.toLowerCase().match(/[a-z]{3,}/g) || [];
-    const counts = new Map();
-    for (const w of words) {
-      counts.set(w, (counts.get(w) || 0) + 1);
+    // Reroute leaked languages
+    const langKeywords = ["english", "hindi", "gujarati", "spanish", "french", "german", "languages"];
+    const hasLangKeyword = langKeywords.some(kw => lowerLine.includes(kw)) && line.length < 50;
+
+    // Reroute leaked hobbies
+    const hobbyKeywords = ["hobby", "hobbies", "reading", "traveling", "playing", "music", "sports"];
+    const hasHobbyKeyword = hobbyKeywords.some(kw => lowerLine.includes(kw));
+
+    // Reroute leaked certifications
+    const certKeywords = ["certified", "certification", "aws", "gcp", "azure", "coursera", "udemy"];
+    const hasCertKeyword = certKeywords.some(kw => lowerLine.includes(kw)) && !lowerLine.includes("github.com") && !lowerLine.includes("linkedin.com");
+
+    if (hasEduKeyword) {
+      rawSections.education.push(line);
+    } else if (hasLangKeyword) {
+      rawSections.languages.push(line);
+    } else if (hasHobbyKeyword) {
+      rawSections.hobbies.push(line);
+    } else if (hasCertKeyword) {
+      rawSections.certifications.push(line);
+    } else {
+      refinedHeaderLines.push(line);
     }
-    const top = Array.from(counts.values()).sort((a, b) => b - a)[0] || 0;
-    if (top > 20) return 2;
-    if (top > 14) return 1;
-    return 0;
-  })();
+  }
+  rawSections.header = refinedHeaderLines;
 
-  const spellingIssues = (() => {
-    const common = ["teh", "recieve", "definately", "seperated", "occured"]
-    const lower = rawText.toLowerCase();
-    const found = common.filter((w) => lower.includes(w));
-    return found.length ? 1 : 0;
-  })();
+  // 3. Extract and structure specific fields
+  const headerBlock = rawSections.header.join("\n");
+  const urls = extractUrls(headerBlock);
 
-  const contentIssues = {
-    parseRate: sectionCoverage >= 4 ? 0 : 1,
-    quantifyingImpact: hasMetrics ? 0 : 1,
-    repetition: repetitionIssues,
-    spellingGrammar: spellingIssues,
+  const structured = {
+    header: {
+      name: extractName(headerBlock),
+      email: extractEmail(headerBlock),
+      phone: extractPhone(headerBlock),
+      location: extractLocation(headerBlock),
+      linkedin: urls.linkedin,
+      github: urls.github,
+      portfolio: urls.portfolio
+    },
+    summary: rawSections.summary.join("\n").trim(),
+    education: [],
+    experience: [],
+    projects: [],
+    skills: [],
+    certifications: [],
+    languages: [],
+    achievements: [],
+    hobbies: []
   };
 
-  const issues =
-    contentIssues.parseRate +
-    contentIssues.quantifyingImpact +
-    contentIssues.repetition +
-    contentIssues.spellingGrammar;
+  // 4. Parse education entries
+  const rawEduText = rawSections.education.join("\n");
+  const eduBlocks = rawEduText.split(/(?=\b(?:bachelor|master|phd|b\.tech|m\.tech|b\.sc|m\.sc|b\.e|m\.b.a|diploma)\b)/i).filter(Boolean);
+  for (const block of eduBlocks) {
+    const blockLines = block.split("\n").map(l => l.trim()).filter(Boolean);
+    if (blockLines.length === 0) continue;
 
-  const contentScore = Math.min(
-    100,
-    Math.round(
-      ((contentIssues.parseRate ? 20 : 30) +
-        (contentIssues.quantifyingImpact ? 10 : 20) +
-        (contentIssues.repetition ? 10 : 20) +
-        (contentIssues.spellingGrammar ? 10 : 20) +
-        Math.min(actionVerbScore, 10)) *
-      1,
-    ),
-  );
+    const degreeLine = blockLines[0] || "";
+    const instKeywords = ["university", "college", "institute", "school", "iit", "nit", "bits", "vit", "gcet"];
+    const institutionLine = blockLines.find(l => instKeywords.some(kw => l.toLowerCase().includes(kw))) || blockLines[1] || "";
+    
+    const blockText = blockLines.join(" ");
+    const gpaMatch = blockText.match(/cgpa[:\s]*(\d+\.?\d*)|gpa[:\s]*(\d+\.?\d*)|grade[:\s]*(\d+\.?\d*%?)/i);
+    const dateMatch = blockText.match(/\b(20\d{2}|19\d{2})\s*[-–]\s*(20\d{2}|present|current)\b/i) || blockText.match(/\b(20\d{2}|19\d{2})\b/g);
 
-  const sectionsScore =
-    sectionCoverage >= 6
-      ? 100
-      : sectionCoverage >= 5
-        ? 85
-        : sectionCoverage >= 4
-          ? 70
-          : 55;
+    structured.education.push({
+      institution: institutionLine,
+      degree: degreeLine,
+      fieldOfStudy: "",
+      startDate: dateMatch?.[0] || "",
+      endDate: dateMatch?.[1] || "",
+      gpa: gpaMatch?.[0] || "",
+      location: ""
+    });
+  }
+  // Fallback if no specific degrees matched but raw text exists
+  if (structured.education.length === 0 && rawEduText.trim().length > 0) {
+    structured.education.push({
+      institution: "Education Detail",
+      degree: rawEduText,
+      fieldOfStudy: "",
+      startDate: "",
+      endDate: "",
+      gpa: "",
+      location: ""
+    });
+  }
 
-  const essentialsScore = Math.min(100, Math.round(score));
-  const formattingScore = Math.max(60, 100 - formattingIssueCount * 10);
+  // 5. Parse experience entries
+  const rawExpText = rawSections.experience.join("\n");
+  const expBlocks = rawExpText.split(/\n(?=[A-Za-z0-9\s,&]+ at [A-Za-z0-9\s,&]+|\b(?:software engineer|developer|manager|intern|analyst|engineer|designer)\b)/i).filter(Boolean);
+  
+  for (const block of expBlocks) {
+    const blockLines = block.split("\n").map(l => l.trim()).filter(Boolean);
+    if (blockLines.length === 0) continue;
 
-  const tailoringScore = null;
+    const firstLine = blockLines[0] || "";
+    let company = "";
+    let position = firstLine;
+    if (firstLine.includes(" at ")) {
+      const parts = firstLine.split(" at ");
+      position = parts[0]?.trim();
+      company = parts[1]?.trim();
+    } else if (firstLine.includes(" - ")) {
+      const parts = firstLine.split(" - ");
+      position = parts[0]?.trim();
+      company = parts[1]?.trim();
+    }
+
+    const blockText = blockLines.join(" ");
+    const dateMatch = blockText.match(/\b(20\d{2}|19\d{2})\s*[-–]\s*(20\d{2}|present|current)\b/i);
+
+    const highlights = blockLines.slice(1).filter(l => l.startsWith("•") || l.startsWith("-") || l.startsWith("*")).map(l => l.replace(/^[•\-*\s]+/, ""));
+
+    structured.experience.push({
+      company,
+      position,
+      location: "",
+      startDate: dateMatch?.[1] || "",
+      endDate: dateMatch?.[2] || "",
+      highlights: highlights.length > 0 ? highlights : blockLines.slice(1)
+    });
+  }
+  if (structured.experience.length === 0 && rawExpText.trim().length > 0) {
+    structured.experience.push({
+      company: "Work History",
+      position: "Details",
+      location: "",
+      startDate: "",
+      endDate: "",
+      highlights: rawExpText.split("\n").map(l => l.replace(/^[•\-*\s]+/, ""))
+    });
+  }
+
+  // 6. Parse projects entries
+  const rawProjText = rawSections.projects.join("\n");
+  const projBlocks = rawProjText.split(/\n(?=[A-Za-z0-9\s,&]{3,50}(?:\s*[\-–:]|\n))/).filter(Boolean);
+  for (const block of projBlocks) {
+    const blockLines = block.split("\n").map(l => l.trim()).filter(Boolean);
+    if (blockLines.length === 0) continue;
+
+    const name = blockLines[0]?.replace(/^[•\-*\s]+/, "") || "";
+    const highlights = blockLines.slice(1).filter(l => l.startsWith("•") || l.startsWith("-") || l.startsWith("*")).map(l => l.replace(/^[•\-*\s]+/, ""));
+    const tech = [];
+    const techStackMatch = blockLines.join(" ").match(/skills|technologies|built with|stack[:\s]*([a-zA-Z0-9,\s]+)/i);
+    if (techStackMatch) {
+      techStackMatch[1].split(",").forEach(t => tech.push(t.trim()));
+    }
+
+    structured.projects.push({
+      name,
+      description: blockLines.slice(1).filter(l => !l.startsWith("•") && !l.startsWith("-") && !l.startsWith("*")).join(" "),
+      technologies: tech,
+      highlights: highlights.length > 0 ? highlights : blockLines.slice(1),
+      url: ""
+    });
+  }
+  if (structured.projects.length === 0 && rawProjText.trim().length > 0) {
+    structured.projects.push({
+      name: "Project",
+      description: rawProjText,
+      technologies: [],
+      highlights: [],
+      url: ""
+    });
+  }
+
+  // 7. Parse skills
+  structured.skills = rawSections.skills.join("\n").split(/,|\n|•|\|/).map(s => s.replace(/^[•\-*\s]+/, "").trim()).filter(Boolean);
+
+  // 8. Other sections
+  structured.certifications = rawSections.certifications.join("\n").split(/\n/).map(s => s.replace(/^[•\-*\s]+/, "").trim()).filter(Boolean);
+  structured.languages = rawSections.languages.join("\n").split(/,|\n/).map(s => s.replace(/^[•\-*\s]+/, "").trim()).filter(Boolean);
+  structured.achievements = rawSections.achievements.join("\n").split(/\n/).map(s => s.replace(/^[•\-*\s]+/, "").trim()).filter(Boolean);
+  structured.hobbies = rawSections.hobbies.join("\n").split(/,|\n/).map(s => s.replace(/^[•\-*\s]+/, "").trim()).filter(Boolean);
+
+  return structured;
+}
+
+/**
+ * Backward compatibility: parses rawText to flat section formats
+ */
+export function parseSections(rawText) {
+  const structured = parseResumeToStructured(rawText);
+  return serializeStructuredToFlat(structured);
+}
+
+export function serializeStructuredToFlat(structured) {
+  if (!structured || typeof structured !== "object") {
+    return {
+      header: "", summary: "", experience: "", skills: "", education: "", projects: "", certifications: ""
+    };
+  }
+
+  const header = structured.header || {};
+  const experience = Array.isArray(structured.experience) ? structured.experience : [];
+  const education = Array.isArray(structured.education) ? structured.education : [];
+  const projects = Array.isArray(structured.projects) ? structured.projects : [];
+  const skills = Array.isArray(structured.skills) ? structured.skills : [];
+  const certifications = Array.isArray(structured.certifications) ? structured.certifications : [];
+  const languages = Array.isArray(structured.languages) ? structured.languages : [];
+  const hobbies = Array.isArray(structured.hobbies) ? structured.hobbies : [];
+  const achievements = Array.isArray(structured.achievements) ? structured.achievements : [];
+
+  const expText = experience.map(exp => {
+    if (!exp || typeof exp !== "object") return "";
+    const titleLine = `${normalize(exp.position || "")} ${exp.company ? `at ${normalize(exp.company)}` : ""}`.trim();
+    const highlights = Array.isArray(exp.highlights) ? exp.highlights : [];
+    const bullets = highlights.map(h => `• ${normalize(h)}`).join("\n");
+    return `${titleLine}\n${bullets}`.trim();
+  }).filter(Boolean).join("\n\n");
+
+  const eduText = education.map(edu => {
+    if (!edu || typeof edu !== "object") return "";
+    return `${normalize(edu.degree || "")} ${edu.institution ? `from ${normalize(edu.institution)}` : ""}`.trim();
+  }).filter(Boolean).join("\n");
+
+  const projText = projects.map(p => {
+    if (!p || typeof p !== "object") return "";
+    const header = normalize(p.name || "");
+    const highlights = Array.isArray(p.highlights) ? p.highlights : [];
+    const bullets = highlights.map(h => `• ${normalize(h)}`).join("\n");
+    return `${header}\n${bullets}`.trim();
+  }).filter(Boolean).join("\n\n");
+
+  const headerText = `${normalize(header.name)}\n${normalize(header.email)}\n${normalize(header.phone)}\n${normalize(header.location)}\n${normalize(header.linkedin)}\n${normalize(header.github)}\n${normalize(header.portfolio)}`
+    .split("\n")
+    .map(l => l.trim())
+    .filter(Boolean)
+    .join("\n");
 
   return {
-    score: Math.min(
-      100,
-      Math.round(
-        contentScore * 0.3 +
-        sectionsScore * 0.2 +
-        essentialsScore * 0.35 +
-        formattingScore * 0.15,
-      ),
-    ),
-    issues,
-    content: contentScore,
-    sections: sectionsScore,
-    essentials: essentialsScore,
-    formatting: formattingScore,
-    tailoring: tailoringScore,
-    breakdown,
-    contentIssues,
-    signals: {
-      wordCount,
-      bulletCount,
-      hasMetrics,
-      actionVerbHits,
-      dateHits,
-      formattingIssues,
-      formattingIssueCount,
+    header: headerText,
+    summary: normalize(structured.summary),
+    experience: expText,
+    skills: skills.map(normalize).join(", "),
+    education: eduText,
+    projects: projText,
+    certifications: [
+      ...certifications.map(normalize),
+      ...languages.map(normalize),
+      ...hobbies.map(normalize),
+      ...achievements.map(normalize)
+    ].join("\n").trim()
+  };
+}
+
+/**
+ * Deterministic scoring calculations.
+ */
+export function calculateOverallAtsScore(sections, jdKeywords = []) {
+  // Map sections object back to structured representation
+  const structured = {
+    header: {
+      name: extractName(sections.header || ""),
+      email: extractEmail(sections.header || ""),
+      phone: extractPhone(sections.header || ""),
+      location: extractLocation(sections.header || ""),
+      linkedin: extractUrls(sections.header || "").linkedin,
+      github: extractUrls(sections.header || "").github,
+      portfolio: extractUrls(sections.header || "").portfolio
     },
+    summary: sections.summary || "",
+    education: sections.education ? [{ degree: sections.education, institution: "" }] : [],
+    experience: sections.experience ? [{ highlights: [sections.experience] }] : [],
+    projects: sections.projects ? [{ highlights: [sections.projects] }] : [],
+    skills: sections.skills ? sections.skills.split(",") : [],
+    certifications: sections.certifications ? sections.certifications.split("\n") : []
+  };
+
+  const results = scoreResume(structured, jdKeywords);
+  return {
+    score: results.overallScore,
+    breakdown: results.categoryScores
+  };
+}
+
+export const computeAtsScore = ({ name, email, phone, skills, experience, education, rawText }) => {
+  const structured = {
+    header: { name, email, phone, location: "", linkedin: "", github: "", portfolio: "" },
+    summary: "",
+    education: education ? [{ degree: education, institution: "" }] : [],
+    experience: experience ? [{ highlights: [experience] }] : [],
+    projects: [],
+    skills: skills || [],
+    certifications: []
+  };
+  const results = scoreResume(structured, []);
+  return {
+    score: results.overallScore,
+    breakdown: results.categoryScores
   };
 };
 
-
+/**
+ * Full file processing (including python parsing stage calls).
+ */
 export const extractResumeData = async ({ filePath, mimeType }) => {
-  const debugLog = (msg) => {
-    fs.appendFileSync("debug_parser.log", `[${new Date().toISOString()}] ${msg}\n`);
-  };
-
-  debugLog(`Starting Python extraction for ${filePath}`);
-
   let parsedData = {};
   try {
-    // Call the Python bridge script
     const pythonScriptPath = path.join(process.cwd(), "utils", "parse_resume.py");
     const output = execSync(`python "${pythonScriptPath}" "${filePath}"`, { encoding: "utf8" });
     parsedData = JSON.parse(output);
-    debugLog(`Python extraction successful`);
   } catch (err) {
-    debugLog(`Python extraction error: ${err.message}`);
-    // Fallback or empty
     parsedData = {};
   }
 
-  // Map Python results to expected structure
+  const rawText = parsedData.raw_text || "";
+  const structured = parseResumeToStructured(rawText);
+
+  // Map to flat backward-compatible output
   const result = {
-    name: parsedData.name || "Anonymous",
-    email: parsedData.email || "",
-    phone: parsedData.mobile_number || "",
+    name: structured.header.name || parsedData.name || "Anonymous",
+    email: structured.header.email || parsedData.email || "",
+    phone: structured.header.phone || parsedData.mobile_number || "",
     degree: parsedData.degree || [],
     noOfPages: parsedData.no_of_pages || null,
-    skills: parsedData.skills || [],
-    experience: parsedData.experience ? parsedData.experience.join("\n") : "",
-    education: "", // pyresparser usually puts education in experience or separate if configured, but we'll stick to what we get
-    rawText: parsedData.raw_text || "",
+    skills: structured.skills.length > 0 ? structured.skills : parsedData.skills || [],
+    experience: serializeStructuredToFlat(structured).experience,
+    education: serializeStructuredToFlat(structured).education,
+    rawText,
+    structured
   };
 
-  // If experience contains education-like keywords, we could try to split, 
-  // but for now let's just use what pyresparser gives.
-
-  // Compute a basic ATS score if needed, or use Gemini later in the controller
-  const finalScore = computeAtsScore({ ...result, rawText: "" }).score;
+  const finalScore = scoreResume(structured, []).overallScore;
 
   return {
     ...result,

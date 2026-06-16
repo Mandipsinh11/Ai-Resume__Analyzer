@@ -1,5 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 import puppeteer from "puppeteer";
+import { parseResumeToStructured } from "../utils/resumeParser.js";
+import { scoreResume } from "../utils/atsScorer.js";
+import { analyzeGaps } from "../utils/gapAnalysis.js";
+
 
 const COMMON_SKILLS = [
   "python",
@@ -48,103 +52,42 @@ function getGeminiClient() {
   return new GoogleGenAI({ apiKey });
 }
 
-/** Local fallback when Gemini is unavailable — still returns useful ATS feedback. */
+
 export function buildBasicAnalysis(resumeText, role = "", jobDescription = "") {
-  const text = resumeText || "";
-  const lower = text.toLowerCase();
-  const skills = COMMON_SKILLS.filter((skill) => lower.includes(skill)).map(
-    (s) => s.replace(/\b\w/g, (c) => c.toUpperCase()),
-  );
+  const structured = parseResumeToStructured(resumeText);
+  const jdKeywords = jobDescription.split(/\W+/).filter(w => w.length > 3).slice(0, 10);
+  const score = scoreResume(structured, jdKeywords);
+  const gaps = analyzeGaps(structured, jobDescription, role);
 
-  const emailMatch = text.match(
-    /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/,
-  );
-  const phoneMatch = text.match(/(\+?\d[\d\s\-().]{8,}\d)/);
+  const improvements = gaps.weakSections.map(w => ({
+    section: w.section,
+    issue: w.issue,
+    whyItMatters: w.impact,
+    suggestedFix: `Optimize the ${w.section} section layout and keywords.`,
+    example: "Provide quantitative results and clear verbs.",
+    priority: w.section === "Experience" || w.section === "Skills" ? "HIGH" : "MEDIUM"
+  }));
 
-  let atsScore = 55;
-  if (text.length > 400) atsScore += 10;
-  if (text.length > 900) atsScore += 5;
-  if (emailMatch) atsScore += 8;
-  if (phoneMatch) atsScore += 7;
-  if (skills.length >= 3) atsScore += 10;
-  if (skills.length >= 6) atsScore += 5;
-
-  const STOP_WORDS = new Set([
-    "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren", "as", "at",
-    "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can", "cannot",
-    "could", "did", "do", "does", "doing", "down", "during", "each", "few", "for", "from", "further",
-    "had", "has", "have", "having", "he", "her", "here", "hers", "herself", "him", "himself", "his",
-    "how", "i", "if", "in", "into", "is", "isn", "it", "its", "itself", "me", "more", "most", "must",
-    "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought",
-    "our", "ours", "ourselves", "out", "over", "own", "same", "shan", "she", "should", "shouldn", "so",
-    "some", "such", "than", "that", "the", "their", "theirs", "them", "themselves", "then", "there",
-    "these", "they", "this", "those", "through", "to", "too", "under", "until", "up", "very", "was",
-    "wasn", "we", "were", "weren", "what", "when", "where", "which", "while", "who", "whom", "why",
-    "with", "won", "would", "you", "your", "yours", "yourself", "yourselves",
-    "role", "seeking", "highly", "motivated", "join", "team", "ideal", "candidate", "building", "scalable",
-    "applications", "will", "write", "clean", "maintainable", "efficient", "code", "participate", "reviews",
-    "testing", "debug", "troubleshoot", "issues", "product", "managers", "designers", "developers",
-    "collaborate", "cross", "functional", "teams", "design", "develop", "test", "deploy", "high", "quality",
-    "solutions", "responsibilities", "requirements", "qualifications", "experience", "skills", "ability",
-    "learn", "quickly", "passion", "innovative", "products", "technical", "documentation", "follow", "agile",
-    "scrum", "development", "methodologies", "strong", "knowledge", "understanding", "oriented", "familiarity",
-    "systems", "operating", "computer", "networks", "lifecycle", "debugging", "techniques", "analytical",
-    "problem", "solving", "communication", "teamwork", "bachelor", "degree", "science", "information",
-    "technology", "related", "field", "preferred", "intern", "associate", "entry", "level", "senior",
-    "junior", "lead", "staff", "engineering", "years", "work", "context", "target", "position"
-  ]);
-
-  const jdBlob = `${role} ${jobDescription}`.toLowerCase();
-  const jdTokens = [
-    ...new Set(
-      jdBlob.split(/\W+/)
-        .filter((w) => w.length > 3 && !STOP_WORDS.has(w))
-    ),
-  ];
-  const matchedJd = jdTokens.filter((w) => lower.includes(w));
-  if (jdTokens.length > 0) {
-    const matchPct = Math.round((matchedJd.length / jdTokens.length) * 100);
-    atsScore = Math.min(92, Math.round(35 + matchPct * 0.55));
-  }
-
-  const improvements = [];
-  if (text.length < 500)
-    improvements.push(
-      "Low semantic density detected — expand experience bullets.",
-    );
-  if (!emailMatch) improvements.push("Add a professional email address.");
-  if (!phoneMatch) improvements.push("Add a contact phone number.");
-  if (jdTokens.length > 0 && matchedJd.length < jdTokens.length * 0.4) {
-    improvements.push("Align more keywords from the job description.");
-  }
   if (improvements.length === 0) {
-    improvements.push("Quantify achievements with metrics where possible.");
-    improvements.push("Use strong action verbs at the start of each bullet.");
+    improvements.push({
+      section: "Experience",
+      issue: "No obvious format weaknesses.",
+      whyItMatters: "Bullet metrics verify claims.",
+      suggestedFix: "Quantify metrics.",
+      example: "Spearheaded platform updates, reducing runtime by 15%",
+      priority: "LOW"
+    });
   }
+
   return {
-    atsScore,
+    atsScore: score.overallScore,
     strengths: [
-      "Contact information detected",
-      "Resume contains structured content",
+      "Resume text parsed successfully",
+      "Standard template headings found"
     ],
-    missingKeywords: jdTokens.filter((w) => !lower.includes(w)).slice(0, 12),
-
-    improvements: [
-      {
-        section: "Keywords",
-        issue: "Limited keyword match with job description",
-        whyItMatters: "ATS systems rely on keyword matching.",
-        suggestedFix: "Add relevant keywords from the target role.",
-        example: "Talent Acquisition, Employee Onboarding",
-        priority: "HIGH",
-      },
-    ],
-
-    finalRecommendations: [
-      "Add more job-specific keywords",
-      "Quantify achievements",
-      "Use action verbs",
-    ],
+    missingKeywords: gaps.missingKeywords,
+    improvements,
+    finalRecommendations: gaps.weakSections.map(w => w.issue)
   };
 }
 
@@ -233,16 +176,7 @@ export const analyzeAndImproveResume = async (
       cleanedText = objectMatch[0];
     }
 
-    let parsed;
-    try {
-      parsed = JSON.parse(cleanedText);
-    } catch (err) {
-      console.error("❌ JSON Parse Failed");
-      console.error("❌ Raw Response:");
-      console.error(cleanedText);
-      throw err;
-    }
-
+    let parsed = JSON.parse(cleanedText);
     if (!parsed.atsScore) {
       const basic = buildBasicAnalysis(resumeText, role, jobDescription);
       parsed.atsScore = basic.atsScore;
@@ -265,34 +199,72 @@ function _safeString(value) {
   if (typeof value === "string") return value;
   return String(value);
 }
-
 export function normalizeResumeJsonForPdf(resumeJson) {
   const safe = resumeJson && typeof resumeJson === "object" ? resumeJson : {};
 
+  // Extract contact info
+  let personal_info = {};
+  if (safe.personal_info && typeof safe.personal_info === "object") {
+    personal_info = safe.personal_info;
+  } else if (safe.header && typeof safe.header === "object") {
+    personal_info = {
+      name: _safeString(safe.header.name),
+      email: _safeString(safe.header.email),
+      phone: _safeString(safe.header.phone),
+      linkedin: _safeString(safe.header.linkedin),
+      github: _safeString(safe.header.github),
+      portfolio: _safeString(safe.header.portfolio),
+      location: _safeString(safe.header.location)
+    };
+  }
+
+  // Normalize education
   const educationRaw = safe.education;
   const educationArr = Array.isArray(educationRaw) ? educationRaw : [];
-
   const normalizedEducation = educationArr
     .filter((x) => x && typeof x === "object")
     .map((edu) => {
       const institution = _safeString(edu.institution).trim();
       const degree = _safeString(edu.degree).trim();
-      const dates =
-        _safeString(edu.dates).trim() || _safeString(edu.year).trim();
+      
+      let dates = _safeString(edu.dates || edu.year).trim();
+      if (!dates && (edu.startDate || edu.endDate)) {
+        dates = `${_safeString(edu.startDate)} - ${_safeString(edu.endDate)}`.trim().replace(/^- |-$/, "");
+      }
 
       return { institution, degree, dates };
     });
 
+  // Normalize experience
+  const experienceRaw = safe.experience;
+  const experienceArr = Array.isArray(experienceRaw) ? experienceRaw : [];
+  const normalizedExperience = experienceArr
+    .filter((x) => x && typeof x === "object")
+    .map((job) => {
+      const company = _safeString(job.company).trim();
+      const title = _safeString(job.title || job.position).trim();
+      
+      let dates = _safeString(job.dates).trim();
+      if (!dates && (job.startDate || job.endDate)) {
+        dates = `${_safeString(job.startDate)} - ${_safeString(job.endDate)}`.trim().replace(/^- |-$/, "");
+      }
+
+      const responsibilities = Array.isArray(job.responsibilities) 
+        ? job.responsibilities 
+        : Array.isArray(job.highlights) 
+          ? job.highlights 
+          : [job.responsibilities || job.highlights].filter(Boolean);
+
+      return { company, title, dates, responsibilities: responsibilities.map(r => _safeString(r).trim()) };
+    });
+
   return {
-    ...safe,
-    education: normalizedEducation,
-    experience: Array.isArray(safe.experience) ? safe.experience : [],
-    skills: Array.isArray(safe.skills) ? safe.skills : [],
+    personal_info,
     summary: _safeString(safe.summary),
-    personal_info:
-      safe.personal_info && typeof safe.personal_info === "object"
-        ? safe.personal_info
-        : {},
+    education: normalizedEducation,
+    experience: normalizedExperience,
+    skills: Array.isArray(safe.skills) ? safe.skills.map(s => _safeString(s)) : [],
+    certifications: Array.isArray(safe.certifications) ? safe.certifications.map(c => _safeString(c)) : []
   };
 }
 

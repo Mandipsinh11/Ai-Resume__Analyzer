@@ -1,10 +1,25 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 const ATSResumeBuilder = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("personal"); // personal | experience | optimization
   const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    const userObj = userStr ? JSON.parse(userStr) : {};
+    const plan = userObj.subscription?.plan || "free";
+    const saved = JSON.parse(localStorage.getItem("savedResumes") || "[]");
+
+    if (plan === "free") {
+      alert("Please upgrade to a Basic or Pro plan to access the AI Resume Builder!");
+      navigate("/dashboard?upgrade=all");
+    } else if (plan === "basic" && saved.length >= 4) {
+      alert("You have reached the limit of 4 saved resumes on the Basic plan. Please upgrade to Pro for unlimited resume creation!");
+      navigate("/dashboard?upgrade=pro");
+    }
+  }, [navigate]);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -28,6 +43,22 @@ const ATSResumeBuilder = () => {
   };
 
   const handleGenerate = async () => {
+    const userStr = localStorage.getItem("user");
+    const userObj = userStr ? JSON.parse(userStr) : {};
+    const plan = userObj.subscription?.plan || "free";
+    const saved = JSON.parse(localStorage.getItem("savedResumes") || "[]");
+
+    if (plan === "free") {
+      alert("Please upgrade to a Basic or Pro plan to create a new resume with ATS!");
+      navigate("/dashboard?upgrade=all");
+      return;
+    }
+    if (plan === "basic" && saved.length >= 4) {
+      alert("You have reached the limit of 4 saved resumes on the Basic plan. Please upgrade to Pro for unlimited resume creation!");
+      navigate("/dashboard?upgrade=pro");
+      return;
+    }
+
     if (!formData.fullName || !formData.targetRole) {
       alert("Please provide at least your Name and Target Role.");
       return;
