@@ -35,7 +35,7 @@ function normalizeOptimizedContent(content) {
 const GEMINI_API_BASE =
   "https://generativelanguage.googleapis.com/v1beta/models";
 
-const DEFAULT_MODELS = ["gemini-2.0-flash", "gemini-2.5-flash"];
+const DEFAULT_MODELS = ["gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-3.5-flash"];
 const MODELS_FROM_ENV = (process.env.GEMINI_MODELS || "")
   .split(",")
   .map((m) => m.trim())
@@ -277,7 +277,7 @@ async function callGroq(prompt, options = {}) {
 }
 
 // ─── Smart AI Caller (Gemini → Groq fallback) ──────────────────────────────────
-async function callAI(prompt, options = {}) {
+export async function callAI(prompt, options = {}) {
   if (getGeminiApiKey()) {
     try {
       const result = await callGemini(prompt, options);

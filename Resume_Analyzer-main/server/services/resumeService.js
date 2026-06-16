@@ -3,6 +3,7 @@ import puppeteer from "puppeteer";
 import { parseResumeToStructured } from "../utils/resumeParser.js";
 import { scoreResume } from "../utils/atsScorer.js";
 import { analyzeGaps } from "../utils/gapAnalysis.js";
+import { callAI } from "../utils/gemini.js";
 
 
 const COMMON_SKILLS = [
@@ -82,6 +83,7 @@ export function buildBasicAnalysis(resumeText, role = "", jobDescription = "") {
 
   return {
     atsScore: score.overallScore,
+    _source: "local",
     strengths: [
       "Resume text parsed successfully",
       "Standard template headings found"
@@ -151,21 +153,12 @@ export const analyzeAndImproveResume = async (
   Job Description:
   ${jobDescription}
   `;
-    const ai = getGeminiClient();
-    if (!ai) {
-      return buildBasicAnalysis(resumeText, role, jobDescription);
-    }
-
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        maxOutputTokens: 4096,
-        responseMimeType: "application/json",
-      },
+    const text = await callAI(prompt, {
+      temperature: 0.3,
+      maxTokens: 4000,
+      responseMimeType: "application/json",
     });
 
-    const text = response.text;
     console.log("========== GEMINI RAW RESPONSE ==========");
     console.log(text);
     console.log("=========================================");
@@ -189,13 +182,16 @@ export const analyzeAndImproveResume = async (
       parsed.missingKeywords = parsed.missingKeywords || basic.missingKeywords;
     }
 
+    parsed._source = "gemini";
     return parsed;
   } catch (error) {
     console.error(
       "Gemini unavailable, using local analysis:",
       error.response?.data || error.message || error,
     );
-    return buildBasicAnalysis(resumeText, role, jobDescription);
+    const basic = buildBasicAnalysis(resumeText, role, jobDescription);
+    basic._source = "local";
+    return basic;
   }
 };
 

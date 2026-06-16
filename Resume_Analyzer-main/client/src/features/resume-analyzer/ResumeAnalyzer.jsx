@@ -86,7 +86,7 @@ const ResumeAnalyzer = () => {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.post(
-        "http://localhost:5000/api/resume/analyze",
+        "http://localhost:5001/api/resume/analyze",
         { role, jobDescription },
         { headers: { Authorization: `Bearer ${token}` } },
       );

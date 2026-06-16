@@ -157,6 +157,7 @@ const mapNodeAnalysisToFeedback = (analysisData, text, role, jobDesc) => {
 
   return {
     score: analysisData.atsScore ?? 75,
+    _source: analysisData._source || "local",
 
     best: {
       title: "Resume Strengths",
@@ -215,6 +216,7 @@ const mapPythonAnalysisToFeedback = (result, role, jobDesc) => {
 
   return {
     score: atsNumeric,
+    _source: result._source || "local",
     best: {
       title: "Semantic Strengths",
       items:
@@ -603,42 +605,6 @@ const ResumeFeedback = () => {
       .join("\n\n");
 
     try {
-      // Prefer Python NLP pipeline when available
-      const pyForm = new FormData();
-      pyForm.append("resume", file);
-      if (jdCombined) pyForm.append("jd_text", jdCombined);
-
-      try {
-        const pyRes = await axios.post(`${aiApiUrl}/api/analyze`, pyForm, {
-          headers: { "Content-Type": "multipart/form-data" },
-          timeout: 120000,
-        });
-
-        if (pyRes.data?.success !== false && !pyRes.data?.error && pyRes.data?.ats_score) {
-          const sections = pyRes.data.sections || {};
-          const extractedResume = pyRes.data.raw_text || Object.values(sections).join("\n") || "";
-
-          setExtractedText(extractedResume);
-          localStorage.setItem("resumeText", extractedResume);
-          localStorage.setItem("resumeSections", JSON.stringify(sections));
-
-          const mapped = mapPythonAnalysisToFeedback(
-            pyRes.data,
-            role.trim(),
-            jobDesc.trim(),
-          );
-          setFeedback(mapped);
-          recordAnalysisHistory(mapped);
-          setStep("done");
-          return;
-        }
-      } catch (pyErr) {
-        console.warn(
-          "Python analyzer unavailable, using Node API:",
-          pyErr.message,
-        );
-      }
-
       // Node: extract text then analyze (with role + JD)
       const uploadForm = new FormData();
       uploadForm.append("file", file);
@@ -936,9 +902,15 @@ const ResumeFeedback = () => {
             <div className="flex flex-col md:flex-row items-center gap-12 p-10 bg-white rounded-[48px] border border-[var(--border)] shadow-2xl overflow-hidden">
               <ScoreRing score={feedback.score} />
               <div className="flex-1 text-center md:text-left min-w-0">
-                <div className="inline-block px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 text-[10px] font-black uppercase tracking-widest mb-4">
-                  Report Finalized
-                </div>
+                {feedback._source === "gemini" ? (
+                  <div className="inline-block px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 text-[10px] font-black uppercase tracking-widest mb-4">
+                    Report Finalized (AI Active)
+                  </div>
+                ) : (
+                  <div className="inline-block px-3 py-1 rounded-full bg-rose-50 border border-rose-100 text-rose-600 text-[10px] font-black uppercase tracking-widest mb-4">
+                    Report Finalized (Offline Fallback)
+                  </div>
+                )}
                 <h2 className="text-3xl font-black tracking-tight text-[var(--text)] mb-3 break-all">
                   {file?.name}
                 </h2>
