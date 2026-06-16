@@ -1,9 +1,12 @@
 import { buildBasicAnalysis } from "../services/resumeService.js";
-import { parseResumeToStructured, serializeStructuredToFlat, normalize } from "./resumeParser.js";
+import {
+  parseResumeToStructured,
+  serializeStructuredToFlat,
+  normalize,
+} from "./resumeParser.js";
 import { scoreResume } from "./atsScorer.js";
 import { analyzeGaps } from "./gapAnalysis.js";
 import { generateDiffs } from "./diffEngine.js";
-
 
 /**
  * Ensures all section values in an optimized content object are strings.
@@ -19,14 +22,19 @@ function normalizeOptimizedContent(content) {
     } else if (val == null) {
       normalized[key] = "";
     } else if (Array.isArray(val)) {
-      normalized[key] = val.map(v => normalizeContent(v)).join("\n");
+      normalized[key] = val.map((v) => normalizeContent(v)).join("\n");
     } else if (typeof val === "object") {
       // Flatten object (e.g. {degree: "B.Tech", cgpa: "6.1"} -> "B.Tech 6.1")
-      normalized[key] = Object.values(val).map(v => normalizeContent(v)).filter(Boolean).join(" ");
+      normalized[key] = Object.values(val)
+        .map((v) => normalizeContent(v))
+        .filter(Boolean)
+        .join(" ");
     } else {
       normalized[key] = String(val);
     }
-    console.log(`[normalizeOptimizedContent] '${key}': type=${typeof val} -> "${String(normalized[key]).slice(0, 60)}..."`);
+    console.log(
+      `[normalizeOptimizedContent] '${key}': type=${typeof val} -> "${String(normalized[key]).slice(0, 60)}..."`,
+    );
   }
   return normalized;
 }
@@ -35,7 +43,13 @@ function normalizeOptimizedContent(content) {
 const GEMINI_API_BASE =
   "https://generativelanguage.googleapis.com/v1beta/models";
 
-const DEFAULT_MODELS = ["gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-3.5-flash"];
+const DEFAULT_MODELS = [
+  "gemini-2.0-flash",
+  "gemini-2.5-flash",
+  "gemini-3.5-flash",
+  "gemini-flash-latest",
+  "gemini-2.5-flash-lite",
+];
 const MODELS_FROM_ENV = (process.env.GEMINI_MODELS || "")
   .split(",")
   .map((m) => m.trim())
@@ -313,24 +327,47 @@ export async function callAI(prompt, options = {}) {
 // ─── JSON Parser ───────────────────────────────────────────────────────────────
 function safeJsonParse(text) {
   const input = sanitizeText(text);
+  function repairJson(str) {
+    let result = str;
+    const lastDQuote = result.lastIndexOf('"');
+    const beforeLast = result.slice(0, lastDQuote);
+    const openStrings = (beforeLast.match(/(?<!\\)"/g) || []).length;
+    if (openStrings % 2 !== 0) result += '"';
+
+    const openBrackets = (result.match(/\[/g) || []).length;
+    const closeBrackets = (result.match(/\]/g) || []).length;
+    const openBraces = (result.match(/\{/g) || []).length;
+    const closeBraces = (result.match(/\}/g) || []).length;
+
+    result += "]".repeat(Math.max(0, openBrackets - closeBrackets));
+    result += "}".repeat(Math.max(0, openBraces - closeBraces));
+    return result;
+  }
   const jsonMatch = input.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   const withoutFences = jsonMatch ? jsonMatch[1].trim() : input.trim();
-
   for (const candidate of [withoutFences, input]) {
     if (!candidate) continue;
+    // Try original
     try {
       return JSON.parse(candidate);
     } catch {}
-    const objectMatch = candidate.match(/\{[\s\S]*\}/);
+    // Try repaired
+    try {
+      return JSON.parse(repairJson(candidate));
+    } catch {}
+    const objectMatch = candidate.match(/\{[\s\S]*/);
     if (objectMatch) {
       try {
-        return JSON.parse(objectMatch[0]);
+        return JSON.parse(repairJson(objectMatch[0]));
       } catch {}
     }
     const arrayMatch = candidate.match(/\[[\s\S]*\]/);
     if (arrayMatch) {
       try {
         return JSON.parse(arrayMatch[0]);
+      } catch {}
+      try {
+        return JSON.parse(repairJson(arrayMatch[0]));
       } catch {}
     }
   }
@@ -430,7 +467,7 @@ Rules:
 
   const resultText = await callAI(prompt, {
     temperature: 0.4,
-    maxTokens: 2048,
+    maxTokens: 8192,
     responseMimeType: "application/json",
   });
 
@@ -449,12 +486,36 @@ function buildLocalFixResume(resumeText, jobDescription = "", role = "") {
   let currentSectionLines = [];
 
   const sectionPatterns = [
-    { name: "Professional Summary", regex: /^(summary|professional summary|profile|objective|career objective|about me)$/i },
-    { name: "Work Experience", regex: /^(experience|work experience|employment history|professional experience|work history|career history|employment)$/i },
-    { name: "Skills", regex: /^(skills|technical skills|core competencies|areas of expertise|technologies|skills & expertise|key skills|tools)$/i },
-    { name: "Education", regex: /^(education|academic profile|academic history|academic qualifications|education & credentials|credentials)$/i },
-    { name: "Projects", regex: /^(projects|personal projects|key projects|technical projects|academic projects)$/i },
-    { name: "Certifications", regex: /^(certifications|licenses|certifications & licenses|courses|professional development|awards|achievements)$/i },
+    {
+      name: "Professional Summary",
+      regex:
+        /^(summary|professional summary|profile|objective|career objective|about me)$/i,
+    },
+    {
+      name: "Work Experience",
+      regex:
+        /^(experience|work experience|employment history|professional experience|work history|career history|employment)$/i,
+    },
+    {
+      name: "Skills",
+      regex:
+        /^(skills|technical skills|core competencies|areas of expertise|technologies|skills & expertise|key skills|tools)$/i,
+    },
+    {
+      name: "Education",
+      regex:
+        /^(education|academic profile|academic history|academic qualifications|education & credentials|credentials)$/i,
+    },
+    {
+      name: "Projects",
+      regex:
+        /^(projects|personal projects|key projects|technical projects|academic projects)$/i,
+    },
+    {
+      name: "Certifications",
+      regex:
+        /^(certifications|licenses|certifications & licenses|courses|professional development|awards|achievements)$/i,
+    },
   ];
 
   for (let i = 0; i < lines.length; i++) {
@@ -465,7 +526,10 @@ function buildLocalFixResume(resumeText, jobDescription = "", role = "") {
     // Check if this line matches a section header pattern
     let foundHeader = null;
     if (trimmed.length < 50) {
-      const cleanLine = trimmed.replace(/[:\-\s•*#]+$/, "").replace(/^[:\-\s•*#]+/, "").trim();
+      const cleanLine = trimmed
+        .replace(/[:\-\s•*#]+$/, "")
+        .replace(/^[:\-\s•*#]+/, "")
+        .trim();
       for (const pattern of sectionPatterns) {
         if (pattern.regex.test(cleanLine)) {
           foundHeader = pattern.name;
@@ -475,8 +539,13 @@ function buildLocalFixResume(resumeText, jobDescription = "", role = "") {
     }
 
     if (foundHeader) {
-      if (currentSectionLines.length > 0 || currentSectionName !== "Header & Contact Info") {
-        parsedSectionsMap[currentSectionName] = currentSectionLines.join("\n").trim();
+      if (
+        currentSectionLines.length > 0 ||
+        currentSectionName !== "Header & Contact Info"
+      ) {
+        parsedSectionsMap[currentSectionName] = currentSectionLines
+          .join("\n")
+          .trim();
       }
       currentSectionName = foundHeader;
       currentSectionLines = [];
@@ -485,8 +554,13 @@ function buildLocalFixResume(resumeText, jobDescription = "", role = "") {
     }
   }
 
-  if (currentSectionLines.length > 0 || currentSectionName !== "Header & Contact Info") {
-    parsedSectionsMap[currentSectionName] = currentSectionLines.join("\n").trim();
+  if (
+    currentSectionLines.length > 0 ||
+    currentSectionName !== "Header & Contact Info"
+  ) {
+    parsedSectionsMap[currentSectionName] = currentSectionLines
+      .join("\n")
+      .trim();
   }
 
   // Define the standard set of sections we want to generate recommendations for
@@ -497,7 +571,7 @@ function buildLocalFixResume(resumeText, jobDescription = "", role = "") {
     "Skills",
     "Education",
     "Projects",
-    "Certifications"
+    "Certifications",
   ];
 
   const sectionsList = [];
@@ -512,136 +586,163 @@ function buildLocalFixResume(resumeText, jobDescription = "", role = "") {
       scoreAfter: 95,
       status: "needs_work",
       issues: [],
-      originalText: originalText || `[This section is missing from your resume]`,
+      originalText:
+        originalText || `[This section is missing from your resume]`,
       optimizedText: "",
-      explanation: ""
+      explanation: "",
     };
 
     if (secName === "Header & Contact Info") {
-      const text = originalText || resumeText.split("\n").slice(0, 3).join("\n") || "Name & contact info";
+      const text =
+        originalText ||
+        resumeText.split("\n").slice(0, 3).join("\n") ||
+        "Name & contact info";
       sectionData.originalText = text;
       const hasLinkedIn = /linkedin\.com/i.test(text);
       const hasGitHub = /github\.com/i.test(text);
-      
+
       if (hasLinkedIn && hasGitHub) {
         sectionData.scoreBefore = 85;
         sectionData.scoreAfter = 96;
         sectionData.status = "good";
-        sectionData.issues = ["Ensure your portfolio link anchors are clickable and point to active repositories."];
+        sectionData.issues = [
+          "Ensure your portfolio link anchors are clickable and point to active repositories.",
+        ];
         sectionData.optimizedText = text;
-        sectionData.explanation = "Verified professional URLs. Keeping clean visual alignments for standard ATS parsing.";
+        sectionData.explanation =
+          "Verified professional URLs. Keeping clean visual alignments for standard ATS parsing.";
       } else {
         sectionData.scoreBefore = 60;
         sectionData.scoreAfter = 95;
-        sectionData.issues = ["Missing links to professional portfolios (like GitHub or LinkedIn)."];
+        sectionData.issues = [
+          "Missing links to professional portfolios (like GitHub or LinkedIn).",
+        ];
         sectionData.optimizedText = `${text}\nLinkedIn: linkedin.com/in/candidate | GitHub: github.com/candidate`;
-        sectionData.explanation = "Added professional placeholder links. Major ATS systems screen for online profiles (GitHub/LinkedIn) to verify project claims.";
+        sectionData.explanation =
+          "Added professional placeholder links. Major ATS systems screen for online profiles (GitHub/LinkedIn) to verify project claims.";
       }
-    }
-
-    else if (secName === "Professional Summary") {
+    } else if (secName === "Professional Summary") {
       if (isMissing) {
-        sectionData.issues = [`Missing professional summary matching target role: ${cleanRole}.`];
+        sectionData.issues = [
+          `Missing professional summary matching target role: ${cleanRole}.`,
+        ];
         sectionData.optimizedText = `Results-oriented professional aiming to excel as a ${cleanRole}. Proficient in core concepts, troubleshooting, and collaborative development. Eager to align skills with team goals to deliver optimized solutions.`;
-        sectionData.explanation = "Added role-specific professional summary to give parsers immediate alignment context.";
+        sectionData.explanation =
+          "Added role-specific professional summary to give parsers immediate alignment context.";
       } else {
         sectionData.scoreBefore = 45;
         sectionData.scoreAfter = 96;
         sectionData.issues = [
           "Summary lacks clear keyword correlation with the target role.",
-          "Does not state key technical competencies."
+          "Does not state key technical competencies.",
         ];
         sectionData.optimizedText = `Results-oriented professional aiming to transition into a ${cleanRole} role. Proficient in core technologies highlighted in the JD, with a focus on problem-solving, quality delivery, and collaborative performance.`;
-        sectionData.explanation = "Rewrote summary to map directly to the target role requirements and core technologies.";
+        sectionData.explanation =
+          "Rewrote summary to map directly to the target role requirements and core technologies.";
       }
-    }
-
-    else if (secName === "Work Experience") {
+    } else if (secName === "Work Experience") {
       if (isMissing) {
         sectionData.issues = ["Missing critical Work Experience section."];
         sectionData.optimizedText = `Work Experience\n• ${cleanRole} (Freelance / Personal projects)\n  - Led end-to-end development of 3 web platforms, optimizing task pipelines and resolving 15+ high-priority bugs.\n  - Collaborated with remote partners using Agile/Scrum workflow, improving sprint velocity by 12%.\n  - Configured project servers, utilizing Git version control and modern build setups.`;
-        sectionData.explanation = "Added work experience draft highlighting projects/freelance role context to satisfy minimal ATS parser experience filters.";
+        sectionData.explanation =
+          "Added work experience draft highlighting projects/freelance role context to satisfy minimal ATS parser experience filters.";
       } else {
         sectionData.scoreBefore = 35;
         sectionData.scoreAfter = 96;
         sectionData.issues = [
           "Bullets lack quantified achievements and action verbs.",
-          "Missing job description keyword integration."
+          "Missing job description keyword integration.",
         ];
-        
-        const bullets = originalText.split(/\n/g).map(b => b.trim().replace(/^•\s*|^\-\s*/, "")).filter(Boolean);
+
+        const bullets = originalText
+          .split(/\n/g)
+          .map((b) => b.trim().replace(/^•\s*|^\-\s*/, ""))
+          .filter(Boolean);
         if (bullets.length > 0) {
-          sectionData.optimizedText = bullets.map((bullet, idx) => {
-            if (idx === 0) return `• Spearheaded engineering lifecycle for target ${cleanRole} features, improving runtime performance by 18%.`;
-            if (idx === 1) return `• Optimized system performance, reducing latencies and resolving 10+ blocker issues.`;
-            return `• Collaborated within Agile squad to deliver production updates, boosting user engagement metrics by 15%.`;
-          }).join("\n");
+          sectionData.optimizedText = bullets
+            .map((bullet, idx) => {
+              if (idx === 0)
+                return `• Spearheaded engineering lifecycle for target ${cleanRole} features, improving runtime performance by 18%.`;
+              if (idx === 1)
+                return `• Optimized system performance, reducing latencies and resolving 10+ blocker issues.`;
+              return `• Collaborated within Agile squad to deliver production updates, boosting user engagement metrics by 15%.`;
+            })
+            .join("\n");
         } else {
           sectionData.optimizedText = `• Executed 4 key project sprints on schedule, optimizing task pipelines and resolving 15+ high-priority blockers.\n• Collaborated within a cross-functional squad using Agile/Scrum, boosting velocity by 12%.\n• Leveraged core project technologies to build scalable system features.`;
         }
-        sectionData.explanation = "Optimized experience correlation. Replaced passive statements with action-driven outcomes and quantified impact metrics (18% performance, 10+ blockers, 15% user metrics).";
+        sectionData.explanation =
+          "Optimized experience correlation. Replaced passive statements with action-driven outcomes and quantified impact metrics (18% performance, 10+ blockers, 15% user metrics).";
       }
-    }
-
-    else if (secName === "Skills") {
-      const addedSkills = (basic.missingKeywords || []).slice(0, 6).join(", ") || "Technical stack, Git, Docker";
+    } else if (secName === "Skills") {
+      const addedSkills =
+        (basic.missingKeywords || []).slice(0, 6).join(", ") ||
+        "Technical stack, Git, Docker";
       if (isMissing) {
         sectionData.issues = ["Missing a dedicated skills list."];
         sectionData.optimizedText = `Technical Skills\n• Languages: JavaScript, Python, HTML5, CSS3\n• Tools & Frameworks: ${addedSkills}, Node.js, Agile/Scrum`;
-        sectionData.explanation = "Added categorized skills section to build high keyword density matching.";
+        sectionData.explanation =
+          "Added categorized skills section to build high keyword density matching.";
       } else {
         sectionData.scoreBefore = 50;
         sectionData.scoreAfter = 96;
         sectionData.issues = [
           "Skills section lacks structured categorization.",
-          "Missing critical technical competencies."
+          "Missing critical technical competencies.",
         ];
         sectionData.optimizedText = `• Core Technologies: ${addedSkills}\n• Methodologies & Tools: Git, Docker, Agile/Scrum, Software Development Life Cycle (SDLC)`;
-        sectionData.explanation = "Grouped skills into parsable blocks (Core Technologies, Methodologies) to increase keyword density score for the ATS filter.";
+        sectionData.explanation =
+          "Grouped skills into parsable blocks (Core Technologies, Methodologies) to increase keyword density score for the ATS filter.";
       }
-    }
-
-    else if (secName === "Education") {
+    } else if (secName === "Education") {
       if (isMissing) {
         sectionData.issues = ["Education section is missing."];
         sectionData.optimizedText = `Education & Academic Path\n• Bachelor of Science in relevant field / Technical Coursework\n• Continuous learning in target domain methodologies`;
-        sectionData.explanation = "Added education draft block to fill essential structural section requirements.";
+        sectionData.explanation =
+          "Added education draft block to fill essential structural section requirements.";
       } else {
         sectionData.scoreBefore = 80;
         sectionData.scoreAfter = 95;
         sectionData.status = "good";
-        sectionData.issues = ["Could strengthen section by explicitly highlighting coursework relevant to target role."];
+        sectionData.issues = [
+          "Could strengthen section by explicitly highlighting coursework relevant to target role.",
+        ];
         sectionData.optimizedText = `${originalText}\n• Relevant Academic Path: Continuous learning in target domain methodologies & algorithms`;
-        sectionData.explanation = "Formatted education headers clearly for standard parser extraction.";
+        sectionData.explanation =
+          "Formatted education headers clearly for standard parser extraction.";
       }
-    }
-
-    else if (secName === "Projects") {
+    } else if (secName === "Projects") {
       if (isMissing) {
         sectionData.issues = ["Missing Projects section completely."];
         sectionData.optimizedText = `Projects\n• Technical Portfolio Application\n  - Built and deployed a web app using HTML, CSS, JavaScript, improving user engagement by 25%.\n  - Optimized client-side search query logic, reducing lookup latency by 40%.\n  - Tracked version configurations using Git and deployed cloud-based assets.`;
-        sectionData.explanation = "Projects verify active skill-in-context capabilities. Added a placeholder project framework.";
+        sectionData.explanation =
+          "Projects verify active skill-in-context capabilities. Added a placeholder project framework.";
       } else {
         sectionData.scoreBefore = 40;
         sectionData.scoreAfter = 96;
-        sectionData.issues = ["Project bullets lack explicit stack tagging and measurable outcomes."];
+        sectionData.issues = [
+          "Project bullets lack explicit stack tagging and measurable outcomes.",
+        ];
         sectionData.optimizedText = `• Technical Project Portfolio\n  - Built responsive frontend utilizing HTML, CSS, and modern scripting, enhancing visual load times by 20%.\n  - Engineered robust backend routing patterns, ensuring secure and fast client-server handshake.`;
-        sectionData.explanation = "Added stack labels and performance indicators to projects to elevate credentials verification score.";
+        sectionData.explanation =
+          "Added stack labels and performance indicators to projects to elevate credentials verification score.";
       }
-    }
-
-    else if (secName === "Certifications") {
+    } else if (secName === "Certifications") {
       if (isMissing) {
         sectionData.issues = ["No relevant certifications found."];
         sectionData.optimizedText = `Certifications & Professional Development\n• AWS Certified Cloud Practitioner / relevant domain certificates\n• Professional Certificate in Tech Methodologies`;
-        sectionData.explanation = "Adding certifications satisfies search refinement filter criteria often applied by human recruiters.";
+        sectionData.explanation =
+          "Adding certifications satisfies search refinement filter criteria often applied by human recruiters.";
       } else {
         sectionData.scoreBefore = 75;
         sectionData.scoreAfter = 95;
         sectionData.status = "good";
-        sectionData.issues = ["Highlight professional credentials related to the job description."];
+        sectionData.issues = [
+          "Highlight professional credentials related to the job description.",
+        ];
         sectionData.optimizedText = `${originalText}\n• Continuous Professional Development: Certification in target role technologies`;
-        sectionData.explanation = "Cleaned up and listed certifications with emphasis on modern domain keywords.";
+        sectionData.explanation =
+          "Cleaned up and listed certifications with emphasis on modern domain keywords.";
       }
     }
 
@@ -659,7 +760,8 @@ function buildLocalFixResume(resumeText, jobDescription = "", role = "") {
         issues: ["Verify section alignment to job role keywords."],
         originalText: parsedSectionsMap[customName],
         optimizedText: parsedSectionsMap[customName],
-        explanation: "Maintained original custom section and formatted alignment details."
+        explanation:
+          "Maintained original custom section and formatted alignment details.",
       });
     }
   }
@@ -995,16 +1097,26 @@ function buildLocalOptimizedContent(sections, jdKeywords = [], role = "") {
   if (!sections.experience || sections.experience.length < 15) {
     optimized.experience = `• Developed and deployed 3 high-impact web applications, optimizing database query latency by 25%.\n• Collaborated with team members to implement robust REST APIs and integrated modern frontend patterns.\n• Participated in agile sprints, code reviews, and system deployments.`;
   } else {
-    const lines = sections.experience.split("\n").map(l => l.trim()).filter(Boolean);
+    const lines = sections.experience
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
     const optimizedLines = lines.map((line, idx) => {
-      if (idx === 0) return `• Spearheaded engineering lifecycle for core features, improving system performance by 18% using ${jdKeywords.slice(0, 3).join(", ") || "best practices"}.`;
-      if (idx === 1) return `• Optimized query performance and system workflows, reducing search query latencies by 35%.`;
+      if (idx === 0)
+        return `• Spearheaded engineering lifecycle for core features, improving system performance by 18% using ${jdKeywords.slice(0, 3).join(", ") || "best practices"}.`;
+      if (idx === 1)
+        return `• Optimized query performance and system workflows, reducing search query latencies by 35%.`;
       return line.startsWith("•") || line.startsWith("-") ? line : `• ${line}`;
     });
     optimized.experience = optimizedLines.join("\n");
   }
 
-  const commonSkills = jdKeywords.length > 0 ? jdKeywords.slice(0, 8).map(s => s.charAt(0).toUpperCase() + s.slice(1)) : ["JavaScript", "React", "Node.js", "SQL", "Git"];
+  const commonSkills =
+    jdKeywords.length > 0
+      ? jdKeywords
+          .slice(0, 8)
+          .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+      : ["JavaScript", "React", "Node.js", "SQL", "Git"];
   if (!sections.skills || sections.skills.length < 5) {
     optimized.skills = `Core Skills: ${commonSkills.join(", ")}, Problem Solving, Agile Methodologies`;
   } else {
@@ -1021,7 +1133,10 @@ function buildLocalOptimizedContent(sections, jdKeywords = [], role = "") {
 
   if (optimized.header) {
     let headerText = optimized.header;
-    headerText = headerText.replace(/linkedin\.com\/in\/candidate|github\.com\/candidate/gi, "");
+    headerText = headerText.replace(
+      /linkedin\.com\/in\/candidate|github\.com\/candidate/gi,
+      "",
+    );
     optimized.header = headerText;
   }
 
@@ -1062,31 +1177,49 @@ function buildLocalOfflineOptimization(structured, jdKeywords = [], role = "") {
     opt.summary = `${opt.summary.trim()} Dedicated to executing high-quality features as a ${cleanRole}, integrating best practices, core technologies, and quantified team sprint metrics.`;
   }
 
-  const commonSkills = jdKeywords.length > 0 
-    ? jdKeywords.slice(0, 6).map(s => s.charAt(0).toUpperCase() + s.slice(1)) 
-    : ["JavaScript", "React", "Node.js", "SQL", "Git"];
-  
+  const commonSkills =
+    jdKeywords.length > 0
+      ? jdKeywords
+          .slice(0, 6)
+          .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+      : ["JavaScript", "React", "Node.js", "SQL", "Git"];
+
   opt.skills = [...new Set([...opt.skills, ...commonSkills])];
 
   // Optimize experience highlights
-  const actionVerbs = ["Spearheaded", "Optimized", "Architected", "Engineered", "Implemented", "Redesigned"];
+  const actionVerbs = [
+    "Spearheaded",
+    "Optimized",
+    "Architected",
+    "Engineered",
+    "Implemented",
+    "Redesigned",
+  ];
   opt.experience = opt.experience.map((exp, idx) => {
     const verb = actionVerbs[idx % actionVerbs.length];
-    const originalHighlights = Array.isArray(exp.highlights) ? exp.highlights : [];
+    const originalHighlights = Array.isArray(exp.highlights)
+      ? exp.highlights
+      : [];
     const improvedHighlights = originalHighlights.map((hl, hIdx) => {
-      if (hIdx === 0) return `${verb} development of core application modules, reducing query latency by 25% and boosting user engagement by 15%.`;
-      if (hIdx === 1) return `Optimized cloud-based deployments and automated testing workflows, ensuring 99.9% pipeline reliability.`;
+      if (hIdx === 0)
+        return `${verb} development of core application modules, reducing query latency by 25% and boosting user engagement by 15%.`;
+      if (hIdx === 1)
+        return `Optimized cloud-based deployments and automated testing workflows, ensuring 99.9% pipeline reliability.`;
       return hl;
     });
 
     if (improvedHighlights.length === 0) {
-      improvedHighlights.push(`${verb} core application engineering workflows to deliver target deliverables on schedule.`);
-      improvedHighlights.push(`Collaborated within cross-functional agile sprints to optimize product performance.`);
+      improvedHighlights.push(
+        `${verb} core application engineering workflows to deliver target deliverables on schedule.`,
+      );
+      improvedHighlights.push(
+        `Collaborated within cross-functional agile sprints to optimize product performance.`,
+      );
     }
 
     return {
       ...exp,
-      highlights: improvedHighlights
+      highlights: improvedHighlights,
     };
   });
 
@@ -1099,37 +1232,43 @@ function buildLocalOfflineOptimization(structured, jdKeywords = [], role = "") {
       endDate: "Present",
       highlights: [
         `Spearheaded development of full-stack responsive applications, optimizing backend endpoints to decrease response latencies by 30%.`,
-        `Automated version control integrations and regression test suites, maximizing code deployment reliability.`
-      ]
+        `Automated version control integrations and regression test suites, maximizing code deployment reliability.`,
+      ],
     });
   }
 
   // Optimize projects highlights
   opt.projects = opt.projects.map((proj, idx) => {
-    const originalHighlights = Array.isArray(proj.highlights) ? proj.highlights : [];
+    const originalHighlights = Array.isArray(proj.highlights)
+      ? proj.highlights
+      : [];
     const improved = originalHighlights.map((hl, hIdx) => {
-      if (hIdx === 0) return `Engineered responsive user interface with modern frameworks, reducing average visual load speeds by 20%.`;
+      if (hIdx === 0)
+        return `Engineered responsive user interface with modern frameworks, reducing average visual load speeds by 20%.`;
       return hl;
     });
     if (improved.length === 0) {
-      improved.push(`Built dynamic portfolio project using modern web configurations.`);
+      improved.push(
+        `Built dynamic portfolio project using modern web configurations.`,
+      );
     }
     return {
       ...proj,
-      highlights: improved
+      highlights: improved,
     };
   });
 
   if (opt.projects.length === 0) {
     opt.projects.push({
       name: "Portfolio Resume Intelligence Platform",
-      description: "An automated system analyzing and matching candidate profiles.",
+      description:
+        "An automated system analyzing and matching candidate profiles.",
       technologies: ["React", "Node.js", "MongoDB"],
       highlights: [
         "Built responsive client interface with integrated visualization widgets, improving dashboard navigation scores by 25%.",
-        "Configured secure state authorization pipelines to validate user sessions."
+        "Configured secure state authorization pipelines to validate user sessions.",
       ],
-      url: ""
+      url: "",
     });
   }
 
@@ -1141,12 +1280,38 @@ function buildLocalOfflineOptimization(structured, jdKeywords = [], role = "") {
       startDate: "",
       endDate: "",
       gpa: "",
-      location: ""
+      location: "",
     });
   }
 
   return opt;
 }
+
+// Dynamic Experience Calculation for ATS Scoring
+const calculateTotalExperience = (experienceArray) => {
+  if (!Array.isArray(experienceArray) || experienceArray.length === 0) return 0;
+
+  let totalMonths = 0;
+
+  experienceArray.forEach((exp) => {
+    let monthsForThisJob = 3;
+    const start = String(exp.startDate || "").toLowerCase();
+    const end = String(exp.endDate || "").toLowerCase();
+    const startYear = parseInt(start.match(/\d{4}/)?.[0]);
+    let endYear = parseInt(end.match(/\d{4}/)?.[0]);
+
+    if (end.includes("present") || end.includes("current")) {
+      endYear = new Date().getFullYear(); // Use the current year (2026)
+    }
+    if (startYear && endYear && endYear >= startYear) {
+      const diffYears = endYear - startYear;
+      monthsForThisJob = diffYears === 0 ? 3 : diffYears * 12; // 3 months min, or scale by year difference
+    }
+
+    totalMonths += monthsForThisJob;
+  });
+  return totalMonths;
+};
 
 export async function fixResumeWithAI(
   resumeText,
@@ -1159,16 +1324,64 @@ export async function fixResumeWithAI(
 
   if (!cleanResumeText) throw new Error("Resume text is required");
 
-  // Stage 1 & 2: Document Parsing & Section Classification
-  const structured = parseResumeToStructured(cleanResumeText);
+  // STAGE 1 & 2: SMART AI RESUME PARSING (PREVENTS JUMBLED COLUMNS BUG)
+  let structured;
+  const apiKeyPresent = getGeminiApiKey() || getGroqApiKey();
+
+  if (apiKeyPresent) {
+    try {
+      const parsePrompt = `
+        You are an elite ATS resume parsing engine. Take the raw resume text string and extract it into a clean, canonical structured JSON object. 
+        Because the text layout might be jumbled from a multi-column PDF, use your contextual intelligence to correctly group descriptions under their correct arrays.
+
+        RAW RESUME TEXT:
+        ${cleanResumeText}
+
+        Return ONLY a valid JSON object matching this schema exactly. No markdown fences, no explanations:
+        {
+          "header": { "name": "", "email": "", "phone": "", "location": "", "linkedin": "", "github": "", "portfolio": "" },
+          "summary": "",
+          "skills": [],
+          "experience": [
+            { "company": "", "position": "", "location": "", "startDate": "", "endDate": "", "highlights": [] }
+          ],
+          "projects": [
+            { "name": "", "description": "", "technologies": [], "highlights": [] }
+          ],
+          "education": [
+            { "institution": "", "degree": "", "fieldOfStudy": "", "startDate": "", "endDate": "", "gpa": "" }
+          ],
+          "certifications": []
+        }
+      `;
+
+      const aiParsedResult = await callAI(parsePrompt, {
+        temperature: 0.1,
+        responseMimeType: "application/json",
+      });
+      structured = safeJsonParse(aiParsedResult);
+    } catch (parseError) {
+      console.warn(
+        "AI parsing failed, falling back to regex parser:",
+        parseError.message,
+      );
+      structured = parseResumeToStructured(cleanResumeText);
+    }
+  } else {
+    structured = parseResumeToStructured(cleanResumeText);
+  }
 
   // Stage 3: Content Validation
   const missingSections = [];
   const issues = [];
-  if (!structured.summary || structured.summary.trim().length === 0) missingSections.push("summary");
-  if (!structured.experience || structured.experience.length === 0) missingSections.push("experience");
-  if (!structured.skills || structured.skills.length === 0) missingSections.push("skills");
-  if (!structured.education || structured.education.length === 0) missingSections.push("education");
+  if (!structured.summary || structured.summary.trim().length === 0)
+    missingSections.push("summary");
+  if (!structured.experience || structured.experience.length === 0)
+    missingSections.push("experience");
+  if (!structured.skills || structured.skills.length === 0)
+    missingSections.push("skills");
+  if (!structured.education || structured.education.length === 0)
+    missingSections.push("education");
 
   // Validate contact info
   if (!structured.header.email) issues.push("Missing email address.");
@@ -1178,15 +1391,146 @@ export async function fixResumeWithAI(
 
   // Filter placeholders in contact info
   const stripPlaceholders = (val) => {
-    return normalize(val).replace(/linkedin\.com\/in\/candidate|github\.com\/candidate/gi, "");
+    return normalize(val).replace(
+      /linkedin\.com\/in\/candidate|github\.com\/candidate/gi,
+      "",
+    );
   };
   structured.header.linkedin = stripPlaceholders(structured.header.linkedin);
   structured.header.github = stripPlaceholders(structured.header.github);
 
   // Stage 4: ATS Analysis (Deterministic Before Score)
-  const STOP_WORDS = new Set(["about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can", "cannot", "could", "did", "do", "does", "doing", "down", "during", "each", "few", "for", "from", "further", "had", "has", "have", "having", "he", "her", "here", "hers", "herself", "him", "himself", "his", "how", "i", "if", "in", "into", "is", "it", "its", "itself", "me", "more", "most", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "our", "ours", "ourselves", "out", "over", "own", "same", "she", "should", "so", "some", "such", "than", "that", "the", "their", "theirs", "them", "themselves", "then", "there", "these", "they", "this", "those", "through", "to", "too", "under", "until", "up", "very", "was", "we", "were", "what", "when", "where", "which", "while", "who", "whom", "why", "with", "would", "you", "your", "yours", "yourself", "yourselves"]);
+  const STOP_WORDS = new Set([
+    "about",
+    "above",
+    "after",
+    "again",
+    "against",
+    "all",
+    "am",
+    "an",
+    "and",
+    "any",
+    "are",
+    "as",
+    "at",
+    "be",
+    "because",
+    "been",
+    "before",
+    "being",
+    "below",
+    "between",
+    "both",
+    "but",
+    "by",
+    "can",
+    "cannot",
+    "could",
+    "did",
+    "do",
+    "does",
+    "doing",
+    "down",
+    "during",
+    "each",
+    "few",
+    "for",
+    "from",
+    "further",
+    "had",
+    "has",
+    "have",
+    "having",
+    "he",
+    "her",
+    "here",
+    "hers",
+    "herself",
+    "him",
+    "himself",
+    "his",
+    "how",
+    "i",
+    "if",
+    "in",
+    "into",
+    "is",
+    "it",
+    "its",
+    "itself",
+    "me",
+    "more",
+    "most",
+    "my",
+    "myself",
+    "no",
+    "nor",
+    "not",
+    "of",
+    "off",
+    "on",
+    "once",
+    "only",
+    "or",
+    "other",
+    "our",
+    "ours",
+    "ourselves",
+    "out",
+    "over",
+    "own",
+    "same",
+    "she",
+    "should",
+    "so",
+    "some",
+    "such",
+    "than",
+    "that",
+    "the",
+    "their",
+    "theirs",
+    "them",
+    "themselves",
+    "then",
+    "there",
+    "these",
+    "they",
+    "this",
+    "those",
+    "through",
+    "to",
+    "too",
+    "under",
+    "until",
+    "up",
+    "very",
+    "was",
+    "we",
+    "were",
+    "what",
+    "when",
+    "where",
+    "which",
+    "while",
+    "who",
+    "whom",
+    "why",
+    "with",
+    "would",
+    "you",
+    "your",
+    "yours",
+    "yourself",
+    "yourselves",
+  ]);
   const jdBlob = `${cleanRole} ${cleanJobDescription}`.toLowerCase();
-  const jdKeywords = [...new Set(jdBlob.split(/\W+/).filter(w => w.length > 3 && !STOP_WORDS.has(w)))].slice(0, 15);
+  const jdKeywords = [
+    ...new Set(
+      jdBlob.split(/\W+/).filter((w) => w.length > 3 && !STOP_WORDS.has(w)),
+    ),
+  ].slice(0, 15);
 
   const beforeScoring = scoreResume(structured, jdKeywords);
   const beforeScore = beforeScoring.overallScore;
@@ -1196,7 +1540,6 @@ export async function fixResumeWithAI(
 
   // Stage 5: AI Optimization
   let optimizedStructured = JSON.parse(JSON.stringify(structured));
-  const apiKeyPresent = getGeminiApiKey() || getGroqApiKey();
 
   if (apiKeyPresent) {
     const prompt = `You are a professional resume writer and ATS optimization specialist.
@@ -1267,7 +1610,7 @@ INSTRUCTIONS:
       const responseText = await callAI(prompt, {
         temperature: 0.3,
         maxTokens: 4096,
-        responseMimeType: "application/json"
+        responseMimeType: "application/json",
       });
       const parsedAi = safeJsonParse(responseText);
 
@@ -1277,70 +1620,150 @@ INSTRUCTIONS:
             name: normalize(parsedAi.header?.name || structured.header.name),
             email: normalize(parsedAi.header?.email || structured.header.email),
             phone: normalize(parsedAi.header?.phone || structured.header.phone),
-            location: normalize(parsedAi.header?.location || structured.header.location),
-            linkedin: normalize(parsedAi.header?.linkedin || structured.header.linkedin),
-            github: normalize(parsedAi.header?.github || structured.header.github),
-            portfolio: normalize(parsedAi.header?.portfolio || structured.header.portfolio)
+            location: normalize(
+              parsedAi.header?.location || structured.header.location,
+            ),
+            linkedin: normalize(
+              parsedAi.header?.linkedin || structured.header.linkedin,
+            ),
+            github: normalize(
+              parsedAi.header?.github || structured.header.github,
+            ),
+            portfolio: normalize(
+              parsedAi.header?.portfolio || structured.header.portfolio,
+            ),
           },
           summary: normalize(parsedAi.summary || structured.summary),
-          education: Array.isArray(parsedAi.education) ? parsedAi.education.map(e => ({
-            institution: normalize(e.institution),
-            degree: normalize(e.degree),
-            fieldOfStudy: normalize(e.fieldOfStudy),
-            startDate: normalize(e.startDate),
-            endDate: normalize(e.endDate),
-            gpa: normalize(e.gpa),
-            location: normalize(e.location)
-          })) : structured.education,
-          experience: Array.isArray(parsedAi.experience) ? parsedAi.experience.map(e => ({
-            company: normalize(e.company),
-            position: normalize(e.position),
-            location: normalize(e.location),
-            startDate: normalize(e.startDate),
-            endDate: normalize(e.endDate),
-            highlights: Array.isArray(e.highlights) ? e.highlights.map(normalize) : [normalize(e.highlights)]
-          })) : structured.experience,
-          projects: Array.isArray(parsedAi.projects) ? parsedAi.projects.map(p => ({
-            name: normalize(p.name),
-            description: normalize(p.description),
-            technologies: Array.isArray(p.technologies) ? p.technologies.map(normalize) : [],
-            highlights: Array.isArray(p.highlights) ? p.highlights.map(normalize) : [],
-            url: normalize(p.url)
-          })) : structured.projects,
-          skills: Array.isArray(parsedAi.skills) ? parsedAi.skills.map(normalize) : structured.skills,
-          certifications: Array.isArray(parsedAi.certifications) ? parsedAi.certifications.map(normalize) : structured.certifications,
-          languages: Array.isArray(parsedAi.languages) ? parsedAi.languages.map(normalize) : structured.languages,
-          achievements: Array.isArray(parsedAi.achievements) ? parsedAi.achievements.map(normalize) : structured.achievements,
-          hobbies: Array.isArray(parsedAi.hobbies) ? parsedAi.hobbies.map(normalize) : structured.hobbies
+          education: Array.isArray(parsedAi.education)
+            ? parsedAi.education.map((e) => ({
+                institution: normalize(e.institution),
+                degree: normalize(e.degree),
+                fieldOfStudy: normalize(e.fieldOfStudy),
+                startDate: normalize(e.startDate),
+                endDate: normalize(e.endDate),
+                gpa: normalize(e.gpa),
+                location: normalize(e.location),
+              }))
+            : structured.education,
+          experience: Array.isArray(parsedAi.experience)
+            ? parsedAi.experience.map((e) => ({
+                company: normalize(e.company),
+                position: normalize(e.position),
+                location: normalize(e.location),
+                startDate: normalize(e.startDate),
+                endDate: normalize(e.endDate),
+                highlights: Array.isArray(e.highlights)
+                  ? e.highlights.map(normalize)
+                  : [normalize(e.highlights)],
+              }))
+            : structured.experience,
+          projects: Array.isArray(parsedAi.projects)
+            ? parsedAi.projects.map((p) => ({
+                name: normalize(p.name),
+                description: normalize(p.description),
+                technologies: Array.isArray(p.technologies)
+                  ? p.technologies.map(normalize)
+                  : [],
+                highlights: Array.isArray(p.highlights)
+                  ? p.highlights.map(normalize)
+                  : [],
+                url: normalize(p.url),
+              }))
+            : structured.projects,
+          skills: Array.isArray(parsedAi.skills)
+            ? parsedAi.skills.map(normalize)
+            : structured.skills,
+          certifications: Array.isArray(parsedAi.certifications)
+            ? parsedAi.certifications.map(normalize)
+            : structured.certifications,
+          languages: Array.isArray(parsedAi.languages)
+            ? parsedAi.languages.map(normalize)
+            : structured.languages,
+          achievements: Array.isArray(parsedAi.achievements)
+            ? parsedAi.achievements.map(normalize)
+            : structured.achievements,
+          hobbies: Array.isArray(parsedAi.hobbies)
+            ? parsedAi.hobbies.map(normalize)
+            : structured.hobbies,
         };
       }
     } catch (err) {
-      console.warn("AI optimization failed, using local offline optimization:", err.message);
-      optimizedStructured = buildLocalOfflineOptimization(structured, jdKeywords, cleanRole);
+      console.warn(
+        "AI optimization failed, using local offline optimization:",
+        err.message,
+      );
+      optimizedStructured = buildLocalOfflineOptimization(
+        structured,
+        jdKeywords,
+        cleanRole,
+      );
     }
   } else {
-    optimizedStructured = buildLocalOfflineOptimization(structured, jdKeywords, cleanRole);
+    optimizedStructured = buildLocalOfflineOptimization(
+      structured,
+      jdKeywords,
+      cleanRole,
+    );
   }
 
   // Prevent placeholder URLs
-  optimizedStructured.header.linkedin = stripPlaceholders(optimizedStructured.header.linkedin);
-  optimizedStructured.header.github = stripPlaceholders(optimizedStructured.header.github);
+  optimizedStructured.header.linkedin = stripPlaceholders(
+    optimizedStructured.header.linkedin,
+  );
+  optimizedStructured.header.github = stripPlaceholders(
+    optimizedStructured.header.github,
+  );
 
   // Stage 6: Score Recalculation
+  /*
   const afterScoring = scoreResume(optimizedStructured, jdKeywords);
   let afterScore = afterScoring.overallScore;
   if (afterScore <= beforeScore) {
     afterScore = Math.min(98, beforeScore + 15);
   }
-  // Guarantee optimized resume score is calibrated to at least 96 and capped at 100
   afterScore = Math.min(100, Math.max(96, afterScore));
+  */
+  // Stage 6: Score Recalculation (Dynamic & Honest)
+  const afterScoring = scoreResume(optimizedStructured, jdKeywords);
+  // 1. Get the genuine score from your calculation engine
+  let afterScore = afterScoring.overallScore;
+  // 2. Dynamic adjustment: If the AI successfully added keywords, calculate the real lift
+  const totalKeywordsTarget = jdKeywords.length;
+  const keywordsMatchedAfter = optimizedStructured.skills.filter((s) =>
+    jdKeywords.includes(s.toLowerCase()),
+  ).length;
+  const keywordBonus =
+    totalKeywordsTarget > 0
+      ? (keywordsMatchedAfter / totalKeywordsTarget) * 20
+      : 0;
+  afterScore = Math.min(100, Math.round(afterScore + keywordBonus));
+  if (optimizedStructured.experience.length === 0) {
+    afterScore = Math.min(50, afterScore); // Cap score if experience is completely blank
+  }
 
   // Developer Debugging Output
   console.log("=================== DEVELOPER DIAGNOSTICS ===================");
   console.log("PARSER OUTPUT:\n", JSON.stringify(structured, null, 2));
-  console.log("VALIDATOR INPUT:\n", JSON.stringify({ rawText: cleanResumeText, length: cleanResumeText.length }, null, 2));
-  console.log("ATS INPUT:\n", JSON.stringify({ structured, jdKeywords }, null, 2));
-  console.log("OPTIMIZER INPUT:\n", JSON.stringify({ structured, role: cleanRole, jobDescription: cleanJobDescription }, null, 2));
+  console.log(
+    "VALIDATOR INPUT:\n",
+    JSON.stringify(
+      { rawText: cleanResumeText, length: cleanResumeText.length },
+      null,
+      2,
+    ),
+  );
+  console.log(
+    "ATS INPUT:\n",
+    JSON.stringify({ structured, jdKeywords }, null, 2),
+  );
+  console.log(
+    "OPTIMIZER INPUT:\n",
+    JSON.stringify(
+      { structured, role: cleanRole, jobDescription: cleanJobDescription },
+      null,
+      2,
+    ),
+  );
   console.log("=============================================================");
 
   // Stage 7: Diff / Result Generation
@@ -1351,13 +1774,48 @@ INSTRUCTIONS:
 
   const sectionsList = [];
   const sectionKeys = [
-    { name: "Header & Contact Info", key: "header", explanation: "Verified contact alignments. Replaced invalid or missing placeholder links to satisfy human screening reviews." },
-    { name: "Professional Summary", key: "summary", explanation: "Targeted Summary block optimized with high-frequency role keywords and action outcome hooks." },
-    { name: "Work Experience", key: "experience", explanation: "Experience achievements rewritten to begin with active verbs and quantified with performance metrics." },
-    { name: "Skills", key: "skills", explanation: "Grouped skills categorized clearly to trigger keywords index parsing." },
-    { name: "Education", key: "education", explanation: "Education details standard formatted for ATS credential validation." },
-    { name: "Projects", key: "projects", explanation: "Personal projects enhanced to document applied technologies and outcomes." },
-    { name: "Certifications", key: "certifications", explanation: "Target certifications added or formatted to build recruitment profile matches." }
+    {
+      name: "Header & Contact Info",
+      key: "header",
+      explanation:
+        "Verified contact alignments. Replaced invalid or missing placeholder links to satisfy human screening reviews.",
+    },
+    {
+      name: "Professional Summary",
+      key: "summary",
+      explanation:
+        "Targeted Summary block optimized with high-frequency role keywords and action outcome hooks.",
+    },
+    {
+      name: "Work Experience",
+      key: "experience",
+      explanation:
+        "Experience achievements rewritten to begin with active verbs and quantified with performance metrics.",
+    },
+    {
+      name: "Skills",
+      key: "skills",
+      explanation:
+        "Grouped skills categorized clearly to trigger keywords index parsing.",
+    },
+    {
+      name: "Education",
+      key: "education",
+      explanation:
+        "Education details standard formatted for ATS credential validation.",
+    },
+    {
+      name: "Projects",
+      key: "projects",
+      explanation:
+        "Personal projects enhanced to document applied technologies and outcomes.",
+    },
+    {
+      name: "Certifications",
+      key: "certifications",
+      explanation:
+        "Target certifications added or formatted to build recruitment profile matches.",
+    },
   ];
 
   for (const item of sectionKeys) {
@@ -1365,17 +1823,27 @@ INSTRUCTIONS:
     const optText = afterFlat[item.key] || "";
 
     const secBefore = scoreResumeSection(item.key, structured, jdKeywords);
-    const secAfter = scoreResumeSection(item.key, optimizedStructured, jdKeywords);
+    const secAfter = scoreResumeSection(
+      item.key,
+      optimizedStructured,
+      jdKeywords,
+    );
 
     sectionsList.push({
       name: item.name,
-      scoreBefore: secBefore,
-      scoreAfter: Math.max(secBefore + 10, secAfter),
-      status: secAfter >= 80 ? "optimized" : secAfter >= 60 ? "good" : "needs_work",
-      issues: gaps.weakSections.filter(w => w.section.toLowerCase().includes(item.key)).map(w => w.issue),
+      // Capped at 100 to prevent scores like 109% or 110%
+      scoreBefore: Math.min(100, secBefore),
+      scoreAfter: Math.min(100, Math.max(secBefore + 10, secAfter)),
+      status:
+        secAfter >= 80 ? "optimized" : secAfter >= 60 ? "good" : "needs_work",
+      issues: gaps.weakSections
+        .filter((w) => w.section.toLowerCase().includes(item.key))
+        .map((w) => w.issue),
       originalText: origText || `[This section is missing from your resume]`,
-      optimizedText: optText || `[No optimized content generated. Add your ${item.name} details to get AI suggestions.]`,
-      explanation: item.explanation
+      optimizedText:
+        optText ||
+        `[No optimized content generated. Add your ${item.name} details to get AI suggestions.]`,
+      explanation: item.explanation,
     });
   }
 
@@ -1383,12 +1851,18 @@ INSTRUCTIONS:
     "Clean formatting alignment",
     "Proper standard headings mapping",
     "Contains core skill listings",
-    "Education details parsed successfully"
+    "Education details parsed successfully",
   ];
 
-  const redFlagsList = gaps.weakSections.map(w => ({ text: w.issue, severity: "red" }));
+  const redFlagsList = gaps.weakSections.map((w) => ({
+    text: w.issue,
+    severity: "red",
+  }));
   if (redFlagsList.length === 0) {
-    redFlagsList.push({ text: "Add more quantified metrics to bullets", severity: "amber" });
+    redFlagsList.push({
+      text: "Add more quantified metrics to bullets",
+      severity: "amber",
+    });
   }
 
   const flatOptimizedResumeText = `
@@ -1400,17 +1874,67 @@ PROFESSIONAL SUMMARY
 ${optimizedStructured.summary}
 
 WORK EXPERIENCE
-${optimizedStructured.experience.map(e => `${e.position} at ${e.company} (${e.startDate} - ${e.endDate})\n${e.highlights.map(hl => `• ${hl}`).join("\n")}`).join("\n\n")}
+${optimizedStructured.experience.map((e) => `${e.position} at ${e.company} (${e.startDate} - ${e.endDate})\n${e.highlights.map((hl) => `• ${hl}`).join("\n")}`).join("\n\n")}
 
 TECHNICAL PROJECTS
-${optimizedStructured.projects.map(p => `${p.name}\n${p.highlights.map(hl => `• ${hl}`).join("\n")}`).join("\n\n")}
+${optimizedStructured.projects.map((p) => `${p.name}\n${p.highlights.map((hl) => `• ${hl}`).join("\n")}`).join("\n\n")}
 
 EDUCATION
-${optimizedStructured.education.map(e => `${e.degree} - ${e.institution} (${e.startDate} - ${e.endDate})`).join("\n")}
+${optimizedStructured.education.map((e) => `${e.degree} - ${e.institution} (${e.startDate} - ${e.endDate})`).join("\n")}
 
 TECHNICAL SKILLS
 ${optimizedStructured.skills.join(", ")}
   `.trim();
+
+  // PRODUCTION INTEGRITY SHIELD: COLLISION PREVENTION FOR BACKEND PAYLOAD
+  if (
+    sectionsList.some((s) => s.name === "Work Experience" && s.scoreBefore > 0)
+  ) {
+    if (Array.isArray(strengthsList)) {
+      if (!strengthsList.some((s) => s.toLowerCase().includes("experience"))) {
+        strengthsList.push(
+          "Professional experience blocks parsed successfully",
+        );
+      }
+    }
+    if (Array.isArray(gaps.weakSections)) {
+      gaps.weakSections = gaps.weakSections.filter(
+        (w) =>
+          !w.issue.toLowerCase().includes("no work experience") &&
+          !w.issue.toLowerCase().includes("limited professional experience") &&
+          !w.issue.toLowerCase().includes("no professional experience"),
+      );
+    }
+  }
+  const hasLowSkillsFlag = gaps.weakSections.some(
+    (w) =>
+      w.issue.toLowerCase().includes("fewer than 5 skills") ||
+      w.issue.toLowerCase().includes("skills section lacks"),
+  );
+
+  if (hasLowSkillsFlag) {
+    if (Array.isArray(strengthsList)) {
+      const idx1 = strengthsList.indexOf("Contains core skill listings");
+      if (idx1 > -1) strengthsList.splice(idx1, 1);
+    }
+  }
+
+  // DYNAMIC ATS PARAMETER ENGINE
+  let dynamicPassProbability = 10; // low fallback baseline
+  if (afterScore >= 85) {
+    dynamicPassProbability = 90 + (afterScore - 85); // High tier
+  } else if (afterScore >= 70) {
+    dynamicPassProbability = 65 + (afterScore - 70) * 1.5; // Mid tier
+  } else if (afterScore >= 50) {
+    dynamicPassProbability = 40 + (afterScore - 50); // Low mid tier
+  }
+  if (calculateTotalExperience(optimizedStructured.experience) < 6) {
+    dynamicPassProbability = Math.max(15, dynamicPassProbability - 30);
+  }
+  const skillMatchScore = afterScoring.categoryScores?.skills || 50;
+  let dynamicTop10Match = Math.round(afterScore * 0.6 + skillMatchScore * 0.4);
+  dynamicPassProbability = Math.min(99, Math.round(dynamicPassProbability));
+  dynamicTop10Match = Math.min(99, Math.round(dynamicTop10Match));
 
   return {
     atsScoreBefore: beforeScore,
@@ -1421,111 +1945,166 @@ ${optimizedStructured.skills.join(", ")}
     optimizedContent: afterFlat,
     scoreBreakdown: {
       before: beforeScoring.categoryScores,
-      after: afterScoring.categoryScores
+      after: afterScoring.categoryScores,
     },
     overview: {
       overall_ats_score: afterScore,
-      pass_probability: Math.min(99, Math.round(afterScore * 1.05)),
-      top10_match_percent: Math.min(99, Math.round(afterScore * 1.02)),
-      internship_count: optimizedStructured.experience.filter(e => /intern/i.test(e.position || "")).length,
-      total_experience_months: optimizedStructured.experience.length * 12
+      pass_probability: dynamicPassProbability,
+      top10_match_percent: dynamicTop10Match,
+      internship_count: optimizedStructured.experience
+        ? optimizedStructured.experience.filter((e) =>
+            /intern/i.test(e.position || ""),
+          ).length
+        : 0,
+      total_experience_months: calculateTotalExperience(
+        optimizedStructured.experience,
+      ),
     },
     strengths: strengthsList,
-    redFlags: redFlagsList.map(r => r.text),
+    redFlags: redFlagsList.map((r) => r.text),
     missingKeywords: gaps.missingKeywords,
     recruiterImpression: {
-      impression: afterScore >= 80 ? "Excellent Profile" : afterScore >= 60 ? "Solid Candidate" : "Needs Optimization",
+      impression:
+        afterScore >= 80
+          ? "Excellent Profile"
+          : afterScore >= 60
+            ? "Solid Candidate"
+            : "Needs Optimization",
       photoRisk: "Low",
       sections: "Good Progress",
-      asset: optimizedStructured.skills.length > 0 ? "Skills section density" : "Structured format"
+      asset:
+        optimizedStructured.skills.length > 0
+          ? "Skills section density"
+          : "Structured format",
     },
     deepAnalysis: {
       candidateName: optimizedStructured.header.name,
       atsScore: afterScore,
-      atsProbability: Math.min(99, Math.round(afterScore * 1.05)),
+      atsProbability: dynamicPassProbability,
       sectionScores: afterScoring.categoryScores,
       firstImpression: {
-        immediateImpression: afterScore >= 80 ? "Excellent" : afterScore >= 60 ? "Average" : "Needs Work",
-        immediateColor: afterScore >= 80 ? "green" : afterScore >= 60 ? "amber" : "red",
+        immediateImpression:
+          afterScore >= 80
+            ? "Excellent"
+            : afterScore >= 60
+              ? "Average"
+              : "Needs Work",
+        immediateColor:
+          afterScore >= 80 ? "green" : afterScore >= 60 ? "amber" : "red",
         photoRisk: "Low risk",
         photoColor: "green",
         sections: "Correctly mapped",
         sectionsColor: "green",
-        biggestAsset: optimizedStructured.skills.length > 0 ? "Skills" : "Education",
-        assetColor: "green"
+        biggestAsset:
+          optimizedStructured.skills.length > 0 ? "Skills" : "Education",
+        assetColor: "green",
       },
       strengths: strengthsList,
       redFlags: redFlagsList,
       missingKeywords: {
         critical: gaps.missingKeywords.slice(0, 6),
-        important: gaps.missingKeywords.slice(6, 12)
+        important: gaps.missingKeywords.slice(6, 12),
       },
       competitiveness: {
-        internship: { you: structured.experience.length > 0 ? 60 : 10, top: 85 },
-        quantifiedImpact: { you: beforeScoring.categoryScores.experience > 10 ? 70 : 20, top: 85 },
-        keywords: { you: beforeScoring.categoryScores.keywordMatch > 10 ? 80 : 30, top: 90 },
-        technicalTools: { you: structured.skills.length > 5 ? 75 : 30, top: 85 },
-        certifications: { you: structured.certifications.length > 0 ? 80 : 20, top: 75 }
+        internship: {
+          you: structured.experience.length > 0 ? 60 : 10,
+          top: 85,
+        },
+        quantifiedImpact: {
+          you: beforeScoring.categoryScores.experience > 10 ? 70 : 20,
+          top: 85,
+        },
+        keywords: {
+          you: beforeScoring.categoryScores.keywordMatch > 10 ? 80 : 30,
+          top: 90,
+        },
+        technicalTools: {
+          you: structured.skills.length > 5 ? 75 : 30,
+          top: 85,
+        },
+        certifications: {
+          you: structured.certifications.length > 0 ? 80 : 20,
+          top: 75,
+        },
       },
-      interviewChance: afterScore >= 80 ? "70-90%" : afterScore >= 60 ? "40-60%" : "10-20%",
-      interviewChanceColor: afterScore >= 80 ? "green" : afterScore >= 60 ? "amber" : "red",
-      top10Changes: diffs.slice(0, 10).map((d, i) => ({ number: i + 1, text: `${d.section}: ${d.reason}` })),
-      rewrites: diffs.map(d => ({ title: d.section, oldText: d.before, newText: d.after })),
+      interviewChance:
+        afterScore >= 80 ? "70-90%" : afterScore >= 60 ? "40-60%" : "10-20%",
+      interviewChanceColor:
+        afterScore >= 80 ? "green" : afterScore >= 60 ? "amber" : "red",
+      top10Changes: diffs
+        .slice(0, 10)
+        .map((d, i) => ({ number: i + 1, text: `${d.section}: ${d.reason}` })),
+      rewrites: diffs.map((d) => ({
+        title: d.section,
+        oldText: d.before,
+        newText: d.after,
+      })),
       finalVerdict: {
         wouldShortlist: afterScore >= 65,
         reason: beforeScoring.explanation,
         biggestBlocker: gaps.weakSections[0]?.issue || "None detected",
-        goodNews: "All core elements aligned to target role requirements."
-      }
+        goodNews: "All core elements aligned to target role requirements.",
+      },
     },
     verdict: {
       status: afterScore >= 65 ? "Would shortlist" : "Would not shortlist",
-      reason: beforeScoring.explanation
+      reason: beforeScoring.explanation,
     },
     missingSections,
     issues,
-    _source: apiKeyPresent ? "gemini" : "local"
+    _source: apiKeyPresent ? "gemini" : "local",
   };
 }
 
-function buildLocalComprehensiveAnalysis(resumeText, jobDescription = "", jobRole = "") {
+function buildLocalComprehensiveAnalysis(
+  resumeText,
+  jobDescription = "",
+  jobRole = "",
+) {
   const structured = parseResumeToStructured(resumeText);
-  const jdKeywords = jobDescription.split(/\W+/).filter(w => w.length > 3).slice(0, 10);
+  const jdKeywords = jobDescription
+    .split(/\W+/)
+    .filter((w) => w.length > 3)
+    .slice(0, 10);
   const scoring = scoreResume(structured, jdKeywords);
   const gaps = analyzeGaps(structured, jobDescription, jobRole);
 
   return {
     overallAssessment: `The resume has been analyzed deterministically. The ATS compatibility score is calibrated at ${scoring.overallScore}%. Main suggestions: include more role-relevant keywords and add quantified achievements.`,
-    professionalProfile: "Summary section parsed successfully. Ensure target role keywords are clearly integrated.",
+    professionalProfile:
+      "Summary section parsed successfully. Ensure target role keywords are clearly integrated.",
     skillsAnalysis: {
       currentSkills: structured.skills,
       missingSkills: gaps.missingSkills,
-      skillProficiency: "Intermediate"
+      skillProficiency: "Intermediate",
     },
-    experienceAnalysis: "Experience highlights scanned. Adding quantitative metrics will significantly improve score verification.",
-    educationAnalysis: "Education block matched successfully. Format degree levels consistently.",
+    experienceAnalysis:
+      "Experience highlights scanned. Adding quantitative metrics will significantly improve score verification.",
+    educationAnalysis:
+      "Education block matched successfully. Format degree levels consistently.",
     keyStrengths: [
       "Contact information parsed successfully",
-      "Core skills detected"
+      "Core skills detected",
     ],
-    areasForImprovement: gaps.weakSections.map(w => w.issue),
+    areasForImprovement: gaps.weakSections.map((w) => w.issue),
     recommendedCoursesOrCertifications: [
       "Advanced Professional Course in domain engineering",
-      "Methodology practices certification"
+      "Methodology practices certification",
     ],
     atsScore: scoring.overallScore,
-    atsOptimizationNotes: "Structure details inside experience points using action outcome verbs.",
+    atsOptimizationNotes:
+      "Structure details inside experience points using action outcome verbs.",
     resumeScore: Math.max(30, scoring.overallScore - 5),
     roleAlignmentAnalysis: `Resume matches basic elements for ${jobRole || "relevant roles"}, but lacks direct target keyword matches.`,
     jobMatchAnalysis: {
       matchPercentage: Math.max(10, scoring.overallScore - 15),
-      keyMissingRequirements: gaps.missingSkills.slice(0, 4)
+      keyMissingRequirements: gaps.missingSkills.slice(0, 4),
     },
     nextSteps: [
       "Use strong action verbs",
       "Insert Job Description missing keywords",
-      "Add numerical outcomes to experience points"
-    ]
+      "Add numerical outcomes to experience points",
+    ],
   };
 }
 
@@ -1534,11 +2113,14 @@ function buildLocalTemplateAnalysis(resumeText) {
   const scoring = scoreResume(structured, []);
   const gaps = analyzeGaps(structured, "", "");
 
-  const issues = gaps.weakSections.map(w => ({
+  const issues = gaps.weakSections.map((w) => ({
     issue: w.issue,
-    severity: w.section === "Experience" || w.section === "Education" ? "high" : "medium",
+    severity:
+      w.section === "Experience" || w.section === "Education"
+        ? "high"
+        : "medium",
     impact: w.impact,
-    example: ""
+    example: "",
   }));
 
   const problems = [];
@@ -1548,15 +2130,18 @@ function buildLocalTemplateAnalysis(resumeText) {
   return {
     templateIssues: issues,
     formattingProblems: problems,
-    structuralIssues: gaps.weakSections.map(w => `${w.section} section check: ${w.issue}`),
-    missingRecommendedSections: gaps.weakSections.map(w => w.section),
-    improvementSuggestions: gaps.weakSections.map(w => ({
+    structuralIssues: gaps.weakSections.map(
+      (w) => `${w.section} section check: ${w.issue}`,
+    ),
+    missingRecommendedSections: gaps.weakSections.map((w) => w.section),
+    improvementSuggestions: gaps.weakSections.map((w) => ({
       area: w.section,
       suggestion: w.issue,
-      reason: w.impact
+      reason: w.impact,
     })),
     overallTemplateScore: scoring.categoryScores.formatting * 10,
-    templateRecommendations: "Maintain proper block parsing alignment, verify dates are consistently formatted, and present clean social links."
+    templateRecommendations:
+      "Maintain proper block parsing alignment, verify dates are consistently formatted, and present clean social links.",
   };
 }
 
@@ -1590,7 +2175,10 @@ RULES: Identify REAL issues only. Check consistency, spacing, dates, email, phon
     });
     return safeJsonParse(resultText);
   } catch (err) {
-    console.warn("Using offline template analysis fallback due to error:", err.message);
+    console.warn(
+      "Using offline template analysis fallback due to error:",
+      err.message,
+    );
     return buildLocalTemplateAnalysis(cleanResumeText);
   }
 }
@@ -1640,8 +2228,14 @@ SCORING: 0-40 significant issues, 40-60 average, 60-80 good, 80-100 excellent`;
     });
     return safeJsonParse(resultText);
   } catch (err) {
-    console.warn("Using offline comprehensive analysis fallback due to error:", err.message);
-    return buildLocalComprehensiveAnalysis(cleanResumeText, cleanJobDescription, cleanJobRole);
+    console.warn(
+      "Using offline comprehensive analysis fallback due to error:",
+      err.message,
+    );
+    return buildLocalComprehensiveAnalysis(
+      cleanResumeText,
+      cleanJobDescription,
+      cleanJobRole,
+    );
   }
 }
-
