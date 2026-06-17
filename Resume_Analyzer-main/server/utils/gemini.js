@@ -64,13 +64,13 @@ const MAX_PROMPT_CHARS = Number(process.env.GEMINI_MAX_PROMPT_CHARS || 32000);
 const MAX_ERROR_TEXT_CHARS = 800;
 
 // ─── Gemini Helpers ────────────────────────────────────────────────────────────
-function getGeminiApiKey() {
+export function getGeminiApiKey() {
   const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "";
   console.log("Gemini Key Loaded:", !!key);
   return String(key).trim();
 }
 
-function getGroqApiKey() {
+export function getGroqApiKey() {
   const key = process.env.GROQ_API_KEY || "";
   console.log("Groq Key Loaded:", !!key);
   return String(key).trim();
@@ -133,7 +133,7 @@ function extractCandidateText(data) {
 }
 
 // ─── Gemini Caller ─────────────────────────────────────────────────────────────
-async function callGemini(prompt, options = {}) {
+export async function callGemini(prompt, options = {}) {
   const geminiKey = getGeminiApiKey();
   if (!geminiKey) throw new Error("GEMINI_API_KEY is not set");
 
@@ -216,7 +216,7 @@ async function callGemini(prompt, options = {}) {
 }
 
 // ─── Groq Caller ───────────────────────────────────────────────────────────────
-async function callGroq(prompt, options = {}) {
+export async function callGroq(prompt, options = {}) {
   const groqKey = getGroqApiKey();
   if (!groqKey) throw new Error("GROQ_API_KEY is not set");
 
@@ -325,7 +325,7 @@ export async function callAI(prompt, options = {}) {
 }
 
 // ─── JSON Parser ───────────────────────────────────────────────────────────────
-function safeJsonParse(text) {
+export function safeJsonParse(text) {
   const input = sanitizeText(text);
   function repairJson(str) {
     let result = str;
@@ -1319,55 +1319,69 @@ export async function fixResumeWithAI(
   role = "",
 ) {
   const cleanResumeText = sanitizeText(resumeText);
-  const cleanJobDescription = sanitizeText(jobDescription || "N/A");
-  const cleanRole = sanitizeText(role || "Software Engineer");
+  const cleanJobDescription = jobDescription ? sanitizeText(jobDescription) : "";
+  const cleanRole = role ? sanitizeText(role) : "";
 
   if (!cleanResumeText) throw new Error("Resume text is required");
 
   // STAGE 1 & 2: SMART AI RESUME PARSING (PREVENTS JUMBLED COLUMNS BUG)
-  let structured;
-  const apiKeyPresent = getGeminiApiKey() || getGroqApiKey();
+  let structured = null;
 
-  if (apiKeyPresent) {
+  const parsePrompt = `
+    You are an elite ATS resume parsing engine. Take the raw resume text string and extract it into a clean, canonical structured JSON object. 
+    Because the text layout might be jumbled from a multi-column PDF, use your contextual intelligence to correctly group descriptions under their correct arrays.
+
+    RAW RESUME TEXT:
+    ${cleanResumeText}
+
+    Return ONLY a valid JSON object matching this schema exactly. No markdown fences, no explanations:
+    {
+      "header": { "name": "", "email": "", "phone": "", "location": "", "linkedin": "", "github": "", "portfolio": "" },
+      "summary": "",
+      "skills": [],
+      "experience": [
+        { "company": "", "position": "", "location": "", "startDate": "", "endDate": "", "highlights": [] }
+      ],
+      "projects": [
+        { "name": "", "description": "", "technologies": [], "highlights": [] }
+      ],
+      "education": [
+        { "institution": "", "degree": "", "fieldOfStudy": "", "startDate": "", "endDate": "", "gpa": "" }
+      ],
+      "certifications": []
+    }
+  `;
+
+  if (getGeminiApiKey()) {
     try {
-      const parsePrompt = `
-        You are an elite ATS resume parsing engine. Take the raw resume text string and extract it into a clean, canonical structured JSON object. 
-        Because the text layout might be jumbled from a multi-column PDF, use your contextual intelligence to correctly group descriptions under their correct arrays.
-
-        RAW RESUME TEXT:
-        ${cleanResumeText}
-
-        Return ONLY a valid JSON object matching this schema exactly. No markdown fences, no explanations:
-        {
-          "header": { "name": "", "email": "", "phone": "", "location": "", "linkedin": "", "github": "", "portfolio": "" },
-          "summary": "",
-          "skills": [],
-          "experience": [
-            { "company": "", "position": "", "location": "", "startDate": "", "endDate": "", "highlights": [] }
-          ],
-          "projects": [
-            { "name": "", "description": "", "technologies": [], "highlights": [] }
-          ],
-          "education": [
-            { "institution": "", "degree": "", "fieldOfStudy": "", "startDate": "", "endDate": "", "gpa": "" }
-          ],
-          "certifications": []
-        }
-      `;
-
-      const aiParsedResult = await callAI(parsePrompt, {
+      console.log("Trying parsing with Gemini...");
+      const aiParsedResult = await callGemini(parsePrompt, {
         temperature: 0.1,
         responseMimeType: "application/json",
       });
       structured = safeJsonParse(aiParsedResult);
-    } catch (parseError) {
-      console.warn(
-        "AI parsing failed, falling back to regex parser:",
-        parseError.message,
-      );
-      structured = parseResumeToStructured(cleanResumeText);
+      console.log("✓ Parsing succeeded with Gemini");
+    } catch (geminiErr) {
+      console.warn(`Gemini parsing failed or returned invalid JSON: ${geminiErr.message}`);
+      console.log("→ Falling back to Groq...");
     }
-  } else {
+  }
+
+  if (!structured && getGroqApiKey()) {
+    try {
+      console.log("Trying parsing with Groq...");
+      const aiParsedResult = await callGroq(parsePrompt, {
+        temperature: 0.1,
+      });
+      structured = safeJsonParse(aiParsedResult);
+      console.log("✓ Parsing succeeded with Groq");
+    } catch (groqErr) {
+      console.warn(`Groq parsing failed or returned invalid JSON: ${groqErr.message}`);
+    }
+  }
+
+  if (!structured) {
+    console.log("Using local regex parser fallback...");
     structured = parseResumeToStructured(cleanResumeText);
   }
 
@@ -1539,136 +1553,94 @@ export async function fixResumeWithAI(
   const gaps = analyzeGaps(structured, cleanJobDescription, cleanRole);
 
   // Stage 5: AI Optimization
-  let optimizedStructured = JSON.parse(JSON.stringify(structured));
+  let optimizedStructured = null;
+  let sourceUsed = "local";
 
-  if (apiKeyPresent) {
-    const prompt = `You are a professional resume writer and ATS optimization specialist.
-Rewrite and optimize the following parsed sections of a candidate's resume to align with the target role and job description.
+  const prompt = `You are a professional resume writer and ATS optimization specialist.
+Optimize the content of the summary, experience, skills, projects, and certifications sections of the candidate's resume ${
+    cleanRole ? `to align with the target role and job description` : `for professional presentation, clarity, and ATS readability`
+  }.
+For experience and projects, rewrite/extend the bullet points to start with strong action verbs and include quantified metrics and achievements (e.g. percentages, scale, bugs fixed, sprint counts) where appropriate.
 
-TARGET ROLE: ${cleanRole}
-JOB DESCRIPTION:
-${cleanJobDescription}
+${cleanRole ? `TARGET ROLE: ${cleanRole}\n` : ""}${cleanJobDescription ? `JOB DESCRIPTION:\n${cleanJobDescription}\n` : ""}
 
-ORIGINAL RESUME STRUCTURED JSON:
-${JSON.stringify(structured, null, 2)}
-
-INSTRUCTIONS:
-1. Optimize each section's content (summary, experience, skills, projects, education, certifications, achievements, languages, hobbies) to inject relevant keywords from the job description and improve phrasing.
-2. If a section is empty or missing, write a high-quality relevant placeholder matching the target role, but do NOT invent specific fake job names, dates, or degrees.
-3. ABSOLUTELY NEVER hallucinate or fabricate contact details (name, email, phone, LinkedIn, GitHub, portfolio). Keep original contact details exactly as is. Do not invent links like linkedin.com/in/candidate or github.com/candidate.
-4. Output ONLY valid JSON in this exact structure matching the Structured Resume canonical schema:
+ORIGINAL RESUME DATA TO OPTIMIZE:
 {
-  "header": {
-    "name": "...",
-    "email": "...",
-    "phone": "...",
-    "location": "...",
-    "linkedin": "...",
-    "github": "...",
-    "portfolio": "..."
-  },
-  "summary": "...",
-  "education": [
-    {
-      "institution": "...",
-      "degree": "...",
-      "fieldOfStudy": "...",
-      "startDate": "...",
-      "endDate": "...",
-      "gpa": "...",
-      "location": "..."
-    }
-  ],
+  "summary": ${JSON.stringify(structured.summary)},
+  "skills": ${JSON.stringify(structured.skills)},
+  "experience": ${JSON.stringify(structured.experience)},
+  "projects": ${JSON.stringify(structured.projects)},
+  "certifications": ${JSON.stringify(structured.certifications)}
+}
+
+Return ONLY a valid JSON object matching the following structure exactly. Do not include markdown fences:
+{
+  "summary": "optimized professional summary",
+  "skills": ["optimized skill 1", "optimized skill 2"],
   "experience": [
     {
-      "company": "...",
-      "position": "...",
-      "location": "...",
-      "startDate": "...",
-      "endDate": "...",
-      "highlights": ["...", "..."]
+      "company": "company name (keep same as input)",
+      "position": "optimized position title",
+      "highlights": ["optimized bullet point 1 with metrics", "optimized bullet point 2"]
     }
   ],
   "projects": [
     {
-      "name": "...",
-      "description": "...",
-      "technologies": ["...", "..."],
-      "highlights": ["...", "..."],
-      "url": "..."
+      "name": "project name (keep same as input)",
+      "technologies": ["tech1", "tech2"],
+      "highlights": ["optimized project bullet 1", "optimized project bullet 2"]
     }
   ],
-  "skills": ["...", "..."],
-  "certifications": ["...", "..."],
-  "languages": ["...", "..."],
-  "achievements": ["...", "..."],
-  "hobbies": ["...", "..."]
-}
-5. No markdown code blocks, no trailing comments, no text before or after the JSON.`;
+  "certifications": ["optimized certification 1", "optimized certification 2"]
+}`;
 
+  // Try Gemini optimization
+  if (getGeminiApiKey()) {
     try {
-      const responseText = await callAI(prompt, {
+      console.log("Trying AI Optimization with Gemini...");
+      const responseText = await callGemini(prompt, {
         temperature: 0.3,
-        maxTokens: 4096,
+        maxTokens: 3000,
         responseMimeType: "application/json",
       });
       const parsedAi = safeJsonParse(responseText);
 
       if (parsedAi && typeof parsedAi === "object") {
+        sourceUsed = "gemini";
         optimizedStructured = {
-          header: {
-            name: normalize(parsedAi.header?.name || structured.header.name),
-            email: normalize(parsedAi.header?.email || structured.header.email),
-            phone: normalize(parsedAi.header?.phone || structured.header.phone),
-            location: normalize(
-              parsedAi.header?.location || structured.header.location,
-            ),
-            linkedin: normalize(
-              parsedAi.header?.linkedin || structured.header.linkedin,
-            ),
-            github: normalize(
-              parsedAi.header?.github || structured.header.github,
-            ),
-            portfolio: normalize(
-              parsedAi.header?.portfolio || structured.header.portfolio,
-            ),
-          },
+          header: structured.header,
           summary: normalize(parsedAi.summary || structured.summary),
-          education: Array.isArray(parsedAi.education)
-            ? parsedAi.education.map((e) => ({
-                institution: normalize(e.institution),
-                degree: normalize(e.degree),
-                fieldOfStudy: normalize(e.fieldOfStudy),
-                startDate: normalize(e.startDate),
-                endDate: normalize(e.endDate),
-                gpa: normalize(e.gpa),
-                location: normalize(e.location),
-              }))
-            : structured.education,
+          education: structured.education,
           experience: Array.isArray(parsedAi.experience)
-            ? parsedAi.experience.map((e) => ({
-                company: normalize(e.company),
-                position: normalize(e.position),
-                location: normalize(e.location),
-                startDate: normalize(e.startDate),
-                endDate: normalize(e.endDate),
-                highlights: Array.isArray(e.highlights)
-                  ? e.highlights.map(normalize)
-                  : [normalize(e.highlights)],
-              }))
+            ? parsedAi.experience.map((e, idx) => {
+                const orig = structured.experience[idx] || {};
+                return {
+                  company: normalize(e.company || orig.company),
+                  position: normalize(e.position || orig.position),
+                  location: normalize(orig.location),
+                  startDate: normalize(orig.startDate),
+                  endDate: normalize(orig.endDate),
+                  highlights: Array.isArray(e.highlights)
+                    ? e.highlights.map(normalize)
+                    : [normalize(e.highlights || "")].filter(Boolean),
+                };
+              })
             : structured.experience,
           projects: Array.isArray(parsedAi.projects)
-            ? parsedAi.projects.map((p) => ({
-                name: normalize(p.name),
-                description: normalize(p.description),
-                technologies: Array.isArray(p.technologies)
-                  ? p.technologies.map(normalize)
-                  : [],
-                highlights: Array.isArray(p.highlights)
-                  ? p.highlights.map(normalize)
-                  : [],
-                url: normalize(p.url),
-              }))
+            ? parsedAi.projects.map((p, idx) => {
+                const orig = structured.projects[idx] || {};
+                return {
+                  name: normalize(p.name || orig.name),
+                  description: normalize(orig.description),
+                  technologies: Array.isArray(p.technologies)
+                    ? p.technologies.map(normalize)
+                    : orig.technologies || [],
+                  highlights: Array.isArray(p.highlights)
+                    ? p.highlights.map(normalize)
+                    : orig.highlights || [],
+                  url: normalize(orig.url),
+                };
+              })
             : structured.projects,
           skills: Array.isArray(parsedAi.skills)
             ? parsedAi.skills.map(normalize)
@@ -1676,29 +1648,85 @@ INSTRUCTIONS:
           certifications: Array.isArray(parsedAi.certifications)
             ? parsedAi.certifications.map(normalize)
             : structured.certifications,
-          languages: Array.isArray(parsedAi.languages)
-            ? parsedAi.languages.map(normalize)
-            : structured.languages,
-          achievements: Array.isArray(parsedAi.achievements)
-            ? parsedAi.achievements.map(normalize)
-            : structured.achievements,
-          hobbies: Array.isArray(parsedAi.hobbies)
-            ? parsedAi.hobbies.map(normalize)
-            : structured.hobbies,
+          languages: structured.languages || [],
+          achievements: structured.achievements || [],
+          hobbies: structured.hobbies || [],
         };
+        console.log("✓ AI Optimization succeeded with Gemini");
       }
-    } catch (err) {
-      console.warn(
-        "AI optimization failed, using local offline optimization:",
-        err.message,
-      );
-      optimizedStructured = buildLocalOfflineOptimization(
-        structured,
-        jdKeywords,
-        cleanRole,
-      );
+    } catch (geminiErr) {
+      console.warn(`Gemini optimization failed or returned invalid JSON: ${geminiErr.message}`);
+      console.log("→ Falling back to Groq...");
     }
-  } else {
+  }
+
+  // Try Groq optimization
+  if (!optimizedStructured && getGroqApiKey()) {
+    try {
+      console.log("Trying AI Optimization with Groq...");
+      const responseText = await callGroq(prompt, {
+        temperature: 0.3,
+        maxTokens: 3000,
+      });
+      const parsedAi = safeJsonParse(responseText);
+
+      if (parsedAi && typeof parsedAi === "object") {
+        optimizedStructured = {
+          header: structured.header,
+          summary: normalize(parsedAi.summary || structured.summary),
+          education: structured.education,
+          experience: Array.isArray(parsedAi.experience)
+            ? parsedAi.experience.map((e, idx) => {
+                const orig = structured.experience[idx] || {};
+                return {
+                  company: normalize(e.company || orig.company),
+                  position: normalize(e.position || orig.position),
+                  location: normalize(orig.location),
+                  startDate: normalize(orig.startDate),
+                  endDate: normalize(orig.endDate),
+                  highlights: Array.isArray(e.highlights)
+                    ? e.highlights.map(normalize)
+                    : [normalize(e.highlights || "")].filter(Boolean),
+                };
+              })
+            : structured.experience,
+          projects: Array.isArray(parsedAi.projects)
+            ? parsedAi.projects.map((p, idx) => {
+                const orig = structured.projects[idx] || {};
+                return {
+                  name: normalize(p.name || orig.name),
+                  description: normalize(orig.description),
+                  technologies: Array.isArray(p.technologies)
+                    ? p.technologies.map(normalize)
+                    : orig.technologies || [],
+                  highlights: Array.isArray(p.highlights)
+                    ? p.highlights.map(normalize)
+                    : orig.highlights || [],
+                  url: normalize(orig.url),
+                };
+              })
+            : structured.projects,
+          skills: Array.isArray(parsedAi.skills)
+            ? parsedAi.skills.map(normalize)
+            : structured.skills,
+          certifications: Array.isArray(parsedAi.certifications)
+            ? parsedAi.certifications.map(normalize)
+            : structured.certifications,
+          languages: structured.languages || [],
+          achievements: structured.achievements || [],
+          hobbies: structured.hobbies || [],
+        };
+        sourceUsed = "groq";
+        console.log("✓ AI Optimization succeeded with Groq");
+      }
+    } catch (groqErr) {
+      console.warn(`Groq optimization failed or returned invalid JSON: ${groqErr.message}`);
+    }
+  }
+
+  // Local fallback optimization
+  if (!optimizedStructured) {
+    console.log("Using local offline optimization fallback...");
     optimizedStructured = buildLocalOfflineOptimization(
       structured,
       jdKeywords,
@@ -2052,7 +2080,7 @@ ${optimizedStructured.skills.join(", ")}
     },
     missingSections,
     issues,
-    _source: apiKeyPresent ? "gemini" : "local",
+    _source: sourceUsed,
   };
 }
 
@@ -2239,3 +2267,121 @@ SCORING: 0-40 significant issues, 40-60 average, 60-80 good, 80-100 excellent`;
     );
   }
 }
+
+export async function unifiedResumeAnalysis(
+  resumeText,
+  jobDescription = "",
+  jobRole = "",
+) {
+  const cleanResumeText = sanitizeText(resumeText);
+  const cleanJobDescription = jobDescription ? sanitizeText(jobDescription) : "";
+  const cleanJobRole = jobRole ? sanitizeText(jobRole) : "";
+
+  if (!cleanResumeText) throw new Error("Resume text is required");
+
+  const prompt = `You are an expert resume analyst, formatting auditor, and ATS specialist. Return ONLY valid JSON, no markdown.
+
+RESUME:
+${cleanResumeText}
+${cleanJobRole ? `\nTARGET ROLE: ${cleanJobRole}` : ""}
+${cleanJobDescription ? `\nJOB DESCRIPTION:\n${cleanJobDescription}` : ""}
+
+Return ONLY a valid JSON object matching the following structure exactly:
+{
+  "overallAssessment": "detailed assessment",
+  "professionalProfile": "career narrative analysis",
+  "skillsAnalysis": {
+    "currentSkills": ["skill1", "skill2"],
+    "missingSkills": ["skill3"],
+    "skillProficiency": "Intermediate/Advanced"
+  },
+  "experienceAnalysis": "experience feedback",
+  "educationAnalysis": "education analysis",
+  "keyStrengths": ["strength1", "strength2"],
+  "areasForImprovement": ["area1", "area2"],
+  "recommendedCoursesOrCertifications": ["course1"],
+  "atsScore": 85,
+  "atsOptimizationNotes": "specific suggestions to optimize for ATS",
+  "resumeScore": 80,
+  ${cleanJobRole ? '"roleAlignmentAnalysis": "alignment analysis",\n' : ""}  ${cleanJobDescription ? '"jobMatchAnalysis": { "matchPercentage": 75, "keyMissingRequirements": ["req1"] },\n' : ""}  "nextSteps": ["step1", "step2"],
+  "templateIssues": [
+    {
+      "issue": "visual overlap or font issue",
+      "severity": "critical|high|medium|low",
+      "impact": "why it matters",
+      "example": "matched text sample"
+    }
+  ],
+  "formattingProblems": ["problem1"],
+  "structuralIssues": ["issue1"],
+  "missingRecommendedSections": ["section1"],
+  "improvementSuggestions": [
+    {
+      "area": "Experience",
+      "suggestion": "add action verbs",
+      "reason": "impact detail"
+    }
+  ],
+  "overallTemplateScore": 85,
+  "templateRecommendations": "2-3 sentence summary about template quality"
+}
+
+SCORING: 0-40 significant issues, 40-60 average, 60-80 good, 80-100 excellent.
+RULES: Make sure to check template consistency, spacing, dates, email/phone format, structural sections, and return only the JSON block.`;
+
+  let parsedResult = null;
+  let sourceUsed = "local";
+
+  if (getGeminiApiKey()) {
+    try {
+      console.log("Trying Unified Analysis with Gemini...");
+      const resultText = await callGemini(prompt, {
+        temperature: 0.25,
+        maxTokens: 4096,
+        responseMimeType: "application/json",
+      });
+      parsedResult = safeJsonParse(resultText);
+      sourceUsed = "gemini";
+      console.log("✓ Unified Analysis succeeded with Gemini");
+    } catch (geminiErr) {
+      console.warn(`Gemini Unified Analysis failed or returned invalid JSON: ${geminiErr.message}`);
+      console.log("→ Falling back to Groq...");
+    }
+  }
+
+  if (!parsedResult && getGroqApiKey()) {
+    try {
+      console.log("Trying Unified Analysis with Groq...");
+      const resultText = await callGroq(prompt, {
+        temperature: 0.25,
+        maxTokens: 4096,
+      });
+      parsedResult = safeJsonParse(resultText);
+      sourceUsed = "groq";
+      console.log("✓ Unified Analysis succeeded with Groq");
+    } catch (groqErr) {
+      console.warn(`Groq Unified Analysis failed or returned invalid JSON: ${groqErr.message}`);
+    }
+  }
+
+  if (!parsedResult) {
+    console.log("Using local offline unified analysis fallback...");
+    const comp = buildLocalComprehensiveAnalysis(
+      cleanResumeText,
+      cleanJobDescription,
+      cleanJobRole,
+    );
+    const temp = buildLocalTemplateAnalysis(cleanResumeText);
+    parsedResult = {
+      ...comp,
+      ...temp,
+    };
+    sourceUsed = "local";
+  }
+
+  return {
+    ...parsedResult,
+    _source: sourceUsed,
+  };
+}
+

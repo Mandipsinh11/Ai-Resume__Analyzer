@@ -50,7 +50,7 @@ const safeUserUpdate = async (userId, updateData) => {
   }
   return user;
 };
-import { analyzeResume as analyzeResumeAI, getAtsTips, fixResumeWithAI, analyzeTemplateIssues, comprehensiveResumeAnalysis } from "../utils/gemini.js";
+import { analyzeResume as analyzeResumeAI, getAtsTips, fixResumeWithAI, analyzeTemplateIssues, comprehensiveResumeAnalysis, unifiedResumeAnalysis } from "../utils/gemini.js";
 import { isResumeText } from "../utils/resumeValidator.js";
 
 const mapParsedToLatexData = (parsed) => {
@@ -199,47 +199,38 @@ export const analyzeResume = async (req, res) => {
     console.log("Analyze controller - User found:", !!user);
     console.log("Analyze controller - rawText length:", textToAnalyze ? textToAnalyze.length : "EMPTY");
 
-    let templateAnalysis = {};
-    let comprehensiveAnalysis = {};
-
+    let unifiedAnalysis = {};
     try {
-      // Run comprehensive analysis
-      comprehensiveAnalysis = await comprehensiveResumeAnalysis(textToAnalyze, jobDescription || "", role || "");
-      console.log("Comprehensive Analysis completed");
+      // Run unified content & template analysis in a single API request
+      unifiedAnalysis = await unifiedResumeAnalysis(textToAnalyze, jobDescription || "", role || "");
+      console.log("Unified Analysis completed");
     } catch (err) {
-      console.error("Comprehensive analysis error:", err);
+      console.error("Unified analysis error:", err);
     }
 
-    try {
-      // Analyze template issues
-      templateAnalysis = await analyzeTemplateIssues(textToAnalyze);
-      console.log("Template Analysis completed");
-    } catch (err) {
-      console.error("Template analysis error:", err);
-      templateAnalysis = {
-        templateIssues: [],
-        formattingProblems: [],
-        structuralIssues: [],
-        missingRecommendedSections: [],
-        improvementSuggestions: []
-      };
-    }
-
-    // Return comprehensive response
+    // Return comprehensive response mapped for frontend compatibility
     const analysis = {
-      atsScore: comprehensiveAnalysis.atsScore || user?.resumeParsed?.atsScore || 70,
-      resumeScore: comprehensiveAnalysis.resumeScore || 75,
-      overallAssessment: comprehensiveAnalysis.overallAssessment || "Resume analysis in progress...",
-      skillsAnalysis: comprehensiveAnalysis.skillsAnalysis || { currentSkills: [], missingSkills: [], skillProficiency: "" },
-      experienceAnalysis: comprehensiveAnalysis.experienceAnalysis || "Experience section assessment pending",
-      educationAnalysis: comprehensiveAnalysis.educationAnalysis || "Education section assessment pending",
-      keyStrengths: comprehensiveAnalysis.keyStrengths || [],
-      areasForImprovement: comprehensiveAnalysis.areasForImprovement || [],
-      recommendedCoursesOrCertifications: comprehensiveAnalysis.recommendedCoursesOrCertifications || [],
-      atsOptimizationNotes: comprehensiveAnalysis.atsOptimizationNotes || "Optimize keyword placement",
-      jobMatchAnalysis: comprehensiveAnalysis.jobMatchAnalysis || null,
-      nextSteps: comprehensiveAnalysis.nextSteps || [],
-      templateAnalysis: templateAnalysis
+      atsScore: unifiedAnalysis.atsScore || user?.resumeParsed?.atsScore || 70,
+      resumeScore: unifiedAnalysis.resumeScore || 75,
+      overallAssessment: unifiedAnalysis.overallAssessment || "Resume analysis in progress...",
+      skillsAnalysis: unifiedAnalysis.skillsAnalysis || { currentSkills: [], missingSkills: [], skillProficiency: "" },
+      experienceAnalysis: unifiedAnalysis.experienceAnalysis || "Experience section assessment pending",
+      educationAnalysis: unifiedAnalysis.educationAnalysis || "Education section assessment pending",
+      keyStrengths: unifiedAnalysis.keyStrengths || [],
+      areasForImprovement: unifiedAnalysis.areasForImprovement || [],
+      recommendedCoursesOrCertifications: unifiedAnalysis.recommendedCoursesOrCertifications || [],
+      atsOptimizationNotes: unifiedAnalysis.atsOptimizationNotes || "Optimize keyword placement",
+      jobMatchAnalysis: unifiedAnalysis.jobMatchAnalysis || null,
+      nextSteps: unifiedAnalysis.nextSteps || [],
+      templateAnalysis: {
+        templateIssues: unifiedAnalysis.templateIssues || [],
+        formattingProblems: unifiedAnalysis.formattingProblems || [],
+        structuralIssues: unifiedAnalysis.structuralIssues || [],
+        missingRecommendedSections: unifiedAnalysis.missingRecommendedSections || [],
+        improvementSuggestions: unifiedAnalysis.improvementSuggestions || [],
+        overallTemplateScore: unifiedAnalysis.overallTemplateScore || 70,
+        templateRecommendations: unifiedAnalysis.templateRecommendations || "Verify dates are consistently formatted."
+      }
     };
 
     return res.status(200).json(analysis);

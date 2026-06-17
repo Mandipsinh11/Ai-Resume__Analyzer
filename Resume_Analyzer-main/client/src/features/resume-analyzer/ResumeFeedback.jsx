@@ -580,10 +580,6 @@ const ResumeFeedback = () => {
       setError("Please upload a resume file (PDF or DOCX).");
       return;
     }
-    if (!role.trim()) {
-      setError("Please specify the target job role.");
-      return;
-    }
 
     setError(null);
     setFeedback(null);
@@ -783,51 +779,36 @@ const ResumeFeedback = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-3">
-              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-3)] ml-1 flex items-center gap-2">
-                <Target className="w-3 h-3 text-[var(--primary)]" /> Target
-                Position
-              </label>
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-3)] ml-1 flex items-center gap-2">
+              <UploadCloud className="w-3 h-3 text-[var(--primary)]" />{" "}
+              Analysis Payload
+            </label>
+            <div
+              onClick={() => fileRef.current?.click()}
+              className={`relative group cursor-pointer w-full bg-[var(--bg)] border-2 border-dashed border-[var(--border)] px-6 py-4 rounded-2xl transition-all hover:border-[var(--primary)] flex items-center justify-between ${file ? "bg-[var(--primary-glow)]/5 border-[var(--primary)]" : ""}`}
+            >
               <input
-                type="text"
-                placeholder="e.g. Senior Product Designer"
-                className="w-full bg-[var(--bg)] border border-[var(--border)] px-6 py-4 rounded-2xl text-[var(--text)] font-semibold focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-glow)] transition-all outline-none"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.doc,.docx"
+                className="hidden"
+                onChange={(e) => {
+                  const picked = e.target.files?.[0];
+                  if (picked) {
+                    setFile(picked);
+                    setError(null);
+                  }
+                }}
               />
-            </div>
-            <div className="space-y-3">
-              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-3)] ml-1 flex items-center gap-2">
-                <UploadCloud className="w-3 h-3 text-[var(--primary)]" />{" "}
-                Analysis Payload
-              </label>
-              <div
-                onClick={() => fileRef.current?.click()}
-                className={`relative group cursor-pointer w-full bg-[var(--bg)] border-2 border-dashed border-[var(--border)] px-6 py-4 rounded-2xl transition-all hover:border-[var(--primary)] flex items-center justify-between ${file ? "bg-[var(--primary-glow)]/5 border-[var(--primary)]" : ""}`}
+              <span
+                className={`text-sm font-bold truncate mr-2 ${file ? "text-[var(--primary)]" : "text-[var(--text-3)]"}`}
               >
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  className="hidden"
-                  onChange={(e) => {
-                    const picked = e.target.files?.[0];
-                    if (picked) {
-                      setFile(picked);
-                      setError(null);
-                    }
-                  }}
-                />
-                <span
-                  className={`text-sm font-bold truncate mr-2 ${file ? "text-[var(--primary)]" : "text-[var(--text-3)]"}`}
-                >
-                  {file ? file.name : "Select PDF or DOCX"}
-                </span>
-                <ChevronRight
-                  className={`w-4 h-4 transition-transform ${file ? "text-[var(--primary)] rotate-90" : "text-[var(--text-3)]"}`}
-                />
-              </div>
+                {file ? file.name : "Select PDF or DOCX"}
+              </span>
+              <ChevronRight
+                className={`w-4 h-4 transition-transform ${file ? "text-[var(--primary)] rotate-90" : "text-[var(--text-3)]"}`}
+              />
             </div>
           </div>
 
@@ -902,7 +883,7 @@ const ResumeFeedback = () => {
             <div className="flex flex-col md:flex-row items-center gap-12 p-10 bg-white rounded-[48px] border border-[var(--border)] shadow-2xl overflow-hidden">
               <ScoreRing score={feedback.score} />
               <div className="flex-1 text-center md:text-left min-w-0">
-                {feedback._source === "gemini" ? (
+                {feedback._source !== "local" ? (
                   <div className="inline-block px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 text-[10px] font-black uppercase tracking-widest mb-4">
                     Report Finalized (AI Active)
                   </div>

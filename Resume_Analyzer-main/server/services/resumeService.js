@@ -3,7 +3,7 @@ import puppeteer from "puppeteer";
 import { parseResumeToStructured } from "../utils/resumeParser.js";
 import { scoreResume } from "../utils/atsScorer.js";
 import { analyzeGaps } from "../utils/gapAnalysis.js";
-import { callAI } from "../utils/gemini.js";
+import { callAI, callGemini, callGroq, getGeminiApiKey, getGroqApiKey, safeJsonParse } from "../utils/gemini.js";
 
 
 const COMMON_SKILLS = [
@@ -99,12 +99,13 @@ export const analyzeAndImproveResume = async (
   role = "",
   jobDescription = "",
 ) => {
-  try {
-    const prompt = `
+  const prompt = `
     Act as a senior recruiter, ATS specialist, hiring manager, and career coach with 15+ years of recruitment experience.
     Analyze the provided resume thoroughly and provide a brutally honest, unbiased assessment of why recruiters may not be showing interest in this profile.
     
-    Calculate a realistic, strictly calibrated ATS Score (out of 100) reflecting the true probability of passing ATS screening for the target role.
+    Calculate a realistic, strictly calibrated ATS Score (out of 100) reflecting the true quality and ATS readability of the resume${
+      role ? ` for the target role` : ""
+    }.
     Do not sugarcoat the grading. Be direct and evidence-based, penalizing missing metrics, generic phrasing, and formatting issues.
 
     Return ONLY valid JSON.
@@ -148,51 +149,60 @@ export const analyzeAndImproveResume = async (
 
   Resume:
   ${resumeText}
-  Target Role:
-  ${role}
-  Job Description:
-  ${jobDescription}
+  ${role ? `Target Role:\n${role}\n` : ""}${jobDescription ? `Job Description:\n${jobDescription}\n` : ""}
   `;
-    const text = await callAI(prompt, {
-      temperature: 0.3,
-      maxTokens: 4000,
-      responseMimeType: "application/json",
-    });
 
-    console.log("========== GEMINI RAW RESPONSE ==========");
-    console.log(text);
-    console.log("=========================================");
+  let parsed = null;
+  let sourceUsed = "local";
 
-    if (!text) {
-      throw new Error("No response from Gemini API");
+  if (getGeminiApiKey()) {
+    try {
+      console.log("Trying Resume Analysis with Gemini...");
+      const text = await callGemini(prompt, {
+        temperature: 0.3,
+        maxTokens: 4000,
+        responseMimeType: "application/json",
+      });
+      parsed = safeJsonParse(text);
+      sourceUsed = "gemini";
+      console.log("✓ Resume Analysis succeeded with Gemini");
+    } catch (geminiErr) {
+      console.warn(`Gemini Resume Analysis failed or returned invalid JSON: ${geminiErr.message}`);
+      console.log("→ Falling back to Groq...");
     }
+  }
 
-    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-    let cleanedText = jsonMatch ? jsonMatch[1].trim() : text.trim();
-    const objectMatch = cleanedText.match(/\{[\s\S]*\}$/);
-    if (objectMatch) {
-      cleanedText = objectMatch[0];
+  if (!parsed && getGroqApiKey()) {
+    try {
+      console.log("Trying Resume Analysis with Groq...");
+      const text = await callGroq(prompt, {
+        temperature: 0.3,
+        maxTokens: 4000,
+      });
+      parsed = safeJsonParse(text);
+      sourceUsed = "groq";
+      console.log("✓ Resume Analysis succeeded with Groq");
+    } catch (groqErr) {
+      console.warn(`Groq Resume Analysis failed or returned invalid JSON: ${groqErr.message}`);
     }
+  }
 
-    let parsed = JSON.parse(cleanedText);
+  if (!parsed) {
+    console.log("Using local offline resume analysis fallback...");
+    const basic = buildBasicAnalysis(resumeText, role, jobDescription);
+    parsed = basic;
+    sourceUsed = "local";
+  } else {
     if (!parsed.atsScore) {
       const basic = buildBasicAnalysis(resumeText, role, jobDescription);
       parsed.atsScore = basic.atsScore;
       parsed.improvements = parsed.improvements || basic.improvements;
       parsed.missingKeywords = parsed.missingKeywords || basic.missingKeywords;
     }
-
-    parsed._source = "gemini";
-    return parsed;
-  } catch (error) {
-    console.error(
-      "Gemini unavailable, using local analysis:",
-      error.response?.data || error.message || error,
-    );
-    const basic = buildBasicAnalysis(resumeText, role, jobDescription);
-    basic._source = "local";
-    return basic;
   }
+
+  parsed._source = sourceUsed;
+  return parsed;
 };
 
 function _safeString(value) {

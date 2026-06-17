@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import {
-  Briefcase,
   FileText,
   Search,
   CheckCircle,
@@ -75,10 +74,6 @@ const ResumeAnalyzer = () => {
   const plan = userObj.subscription?.plan || "free";
 
   const handleAnalyze = async () => {
-    if (!role) {
-      setError("Please specify the target job role.");
-      return;
-    }
     setError(null);
     setLoading(true);
     setResults(null);
@@ -87,7 +82,7 @@ const ResumeAnalyzer = () => {
       const token = localStorage.getItem("token");
       const response = await axios.post(
         "http://localhost:5001/api/resume/analyze",
-        { role, jobDescription },
+        { role: "", jobDescription: "" },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       setResults(response.data);
@@ -162,19 +157,12 @@ const ResumeAnalyzer = () => {
             >
               <div className="space-y-8">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-3)] mb-4 block">
-                    Target Job Role
-                  </label>
-                  <div className="relative group">
-                    <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-3)] group-focus-within:text-[var(--primary)] transition-colors" />
-                    <input
-                      type="text"
-                      placeholder="e.g. Senior Product Designer"
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-2xl py-4 pl-12 pr-6 text-sm md:text-base font-medium focus:outline-none focus:border-[var(--primary)] shadow-sm transition-all"
-                    />
-                  </div>
+                  <h3 className="text-lg font-black tracking-tight text-[var(--text)] mb-3">
+                    Analyze Resume
+                  </h3>
+                  <p className="text-sm text-[var(--text-3)] font-medium leading-relaxed">
+                    Evaluate your uploaded resume standalone against industry standards, formatting criteria, and layout consistency.
+                  </p>
                 </div>
 
                 {error && (
